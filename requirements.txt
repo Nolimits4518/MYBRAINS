@@ -1,0 +1,6 @@
+git+https://github.com/nolimits4518/binaryoptions-tools-v2.git@main
+python-telegram-bot==21.4
+pandas==2.2.2
+pandas-ta==0.3.14b0
+python-dotenv==1.0.1
+gunicorn==22.0.0
