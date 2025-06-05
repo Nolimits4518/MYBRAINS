@@ -1,4 +1,4 @@
-git+https://github.com/nolimits4518/binaryoptions-tools-v2.git@main
+git+https://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:x-oauth-basic@github.com/nolimits4518/binaryoptions-tools-v2.git@master
 python-telegram-bot==21.4
 pandas==2.2.2
 pandas-ta==0.3.14b0
