@@ -607,6 +607,10 @@ class EnhancedRSIBotTester:
         self.test_bot_functionality()
         self.test_telegram_integration()
         
+        # Test Universal Trading Platform Connector
+        self.test_platform_connector_endpoints()
+        self.test_platform_connector_error_handling()
+        
         # Print comprehensive results
         print("\n" + "=" * 70)
         print("📊 COMPREHENSIVE TEST RESULTS")
