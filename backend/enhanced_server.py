@@ -264,28 +264,40 @@ async def analyze_platform(request: PlatformSetupRequest):
         logging.warning(f"Web automation failed for {request.platform_name}: {e}")
         
         # Return a standard form structure that covers most trading platforms
+        standard_fields = [
+            {
+                "name": "username",
+                "type": "text",
+                "label": "Username/Email",
+                "placeholder": "Enter your username or email",
+                "required": True
+            },
+            {
+                "name": "password",
+                "type": "password",
+                "label": "Password",
+                "placeholder": "Enter your password",
+                "required": True
+            }
+        ]
+        
+        # Add server field for platforms that commonly need it
+        if any(platform in request.platform_name.lower() for platform in ['tradelocker', 'metatrader', 'mt4', 'mt5', 'ctrader', 'trading']):
+            standard_fields.append({
+                "name": "server",
+                "type": "select",
+                "label": "Server/Broker",
+                "placeholder": "Select server or broker",
+                "required": True
+            })
+        
         return {
             "status": "success",
             "message": f"Platform {request.platform_name} analyzed using fallback method",
             "data": {
                 "platform_name": request.platform_name,
                 "login_url": request.login_url,
-                "login_fields": [
-                    {
-                        "name": "username",
-                        "type": "text",
-                        "label": "Username/Email",
-                        "placeholder": "Enter your username or email",
-                        "required": True
-                    },
-                    {
-                        "name": "password",
-                        "type": "password",
-                        "label": "Password",
-                        "placeholder": "Enter your password",
-                        "required": True
-                    }
-                ],
+                "login_fields": standard_fields,
                 "submit_button": "button[type='submit']",
                 "two_fa_detected": True,  # Assume 2FA is available
                 "captcha_detected": False,
