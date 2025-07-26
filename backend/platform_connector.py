@@ -1180,43 +1180,58 @@ class PlatformConnectionManager:
         """Load and decrypt credentials from file"""
         try:
             if not os.path.exists("platform_credentials.json"):
+                logging.info("📁 No platform credentials file found")
                 return
             
             with open("platform_credentials.json", "r") as f:
                 credentials_data = json.load(f)
             
             for platform_id, encrypted_creds in credentials_data.items():
-                # Decrypt sensitive data
-                two_fa = None
-                if "two_fa" in encrypted_creds and encrypted_creds["two_fa"]:
-                    two_fa_data = encrypted_creds["two_fa"]
-                    two_fa = TwoFAConfig(
-                        enabled=two_fa_data["enabled"],
-                        method=AuthMethod(two_fa_data["method"]),
-                        totp_secret=self.security.decrypt(two_fa_data["totp_secret"]) if two_fa_data["totp_secret"] else "",
-                        sms_number=self.security.decrypt(two_fa_data["sms_number"]) if two_fa_data["sms_number"] else "",
-                        email=self.security.decrypt(two_fa_data["email"]) if two_fa_data["email"] else "",
-                        backup_codes=[self.security.decrypt(code) for code in two_fa_data["backup_codes"]] if two_fa_data["backup_codes"] else []
+                try:
+                    # Decrypt sensitive data
+                    two_fa = None
+                    if "two_fa" in encrypted_creds and encrypted_creds["two_fa"]:
+                        two_fa_data = encrypted_creds["two_fa"]
+                        two_fa = TwoFAConfig(
+                            enabled=two_fa_data["enabled"],
+                            method=AuthMethod(two_fa_data["method"]),
+                            totp_secret=self.security.decrypt(two_fa_data["totp_secret"]) if two_fa_data["totp_secret"] else "",
+                            sms_number=self.security.decrypt(two_fa_data["sms_number"]) if two_fa_data["sms_number"] else "",
+                            email=self.security.decrypt(two_fa_data["email"]) if two_fa_data["email"] else "",
+                            backup_codes=[self.security.decrypt(code) for code in two_fa_data["backup_codes"]] if two_fa_data["backup_codes"] else []
+                        )
+                    
+                    creds = PlatformCredentials(
+                        platform_id=encrypted_creds["platform_id"],
+                        platform_name=encrypted_creds["platform_name"],
+                        login_url=encrypted_creds["login_url"],
+                        username=self.security.decrypt(encrypted_creds["username"]),
+                        password=self.security.decrypt(encrypted_creds["password"]),
+                        api_key=self.security.decrypt(encrypted_creds["api_key"]) if encrypted_creds.get("api_key") else "",
+                        api_secret=self.security.decrypt(encrypted_creds["api_secret"]) if encrypted_creds.get("api_secret") else "",
+                        server=encrypted_creds.get("server", ""),  # Handle missing server field
+                        additional_fields=encrypted_creds.get("additional_fields", {}),  # Handle missing additional_fields
+                        two_fa=two_fa,
+                        created_at=encrypted_creds["created_at"],
+                        last_used=encrypted_creds["last_used"],
+                        is_active=encrypted_creds.get("is_active", True)
                     )
-                
-                creds = PlatformCredentials(
-                    platform_id=encrypted_creds["platform_id"],
-                    platform_name=encrypted_creds["platform_name"],
-                    login_url=encrypted_creds["login_url"],
-                    username=self.security.decrypt(encrypted_creds["username"]),
-                    password=self.security.decrypt(encrypted_creds["password"]),
-                    api_key=self.security.decrypt(encrypted_creds["api_key"]) if encrypted_creds["api_key"] else "",
-                    api_secret=self.security.decrypt(encrypted_creds["api_secret"]) if encrypted_creds["api_secret"] else "",
-                    two_fa=two_fa,
-                    created_at=encrypted_creds["created_at"],
-                    last_used=encrypted_creds["last_used"],
-                    is_active=encrypted_creds["is_active"]
-                )
-                
-                self.credentials[platform_id] = creds
-                self.active_connections[platform_id] = False
+                    
+                    self.credentials[platform_id] = creds
+                    self.active_connections[platform_id] = False
+                    
+                    logging.info(f"✅ Loaded platform: {creds.platform_name}")
+                    
+                except Exception as e:
+                    logging.error(f"❌ Failed to load platform {platform_id}: {e}")
+                    continue
             
             logging.info(f"✅ Loaded {len(self.credentials)} platform credentials")
+            
+        except Exception as e:
+            logging.error(f"❌ Failed to load credentials: {e}")
+            self.credentials = {}
+            self.active_connections = {}
             
         except Exception as e:
             logging.error(f"❌ Failed to load credentials: {e}")
