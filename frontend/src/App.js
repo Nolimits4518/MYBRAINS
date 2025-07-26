@@ -760,7 +760,121 @@ function App() {
           </div>
         )}
 
-        {/* Status Cards */}
+        {/* Timeframe Trading Control Panel */}
+        <div className="mb-6 bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <Clock className="w-5 h-5 mr-2 text-blue-400" />
+            Timeframe Trading Control
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Selected Timeframe</label>
+              <div className="bg-gray-700 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-blue-400">
+                  {timeframes.find(tf => tf.value === config.timeframe)?.label || config.timeframe}
+                </div>
+                <div className="text-sm text-gray-400">
+                  {timeframes.find(tf => tf.value === config.timeframe)?.minutes || 0} minutes per candle
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Trading Mode</label>
+              <div className="bg-gray-700 rounded-lg p-3 text-center">
+                <div className="text-lg font-semibold text-green-400">
+                  {config.timeframe === '1m' || config.timeframe === '5m' ? 'Scalping' :
+                   config.timeframe === '15m' || config.timeframe === '30m' ? 'Day Trading' :
+                   config.timeframe === '1h' || config.timeframe === '4h' ? 'Swing Trading' :
+                   'Position Trading'}
+                </div>
+                <div className="text-sm text-gray-400">
+                  Strategy: {config.timeframe === '1m' || config.timeframe === '5m' ? 'Quick Signals' :
+                            config.timeframe === '1d' || config.timeframe === '1w' ? 'Trend Following' :
+                            'RSI Momentum'}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Expected Frequency</label>
+              <div className="bg-gray-700 rounded-lg p-3 text-center">
+                <div className="text-lg font-semibold text-yellow-400">
+                  {config.timeframe === '1m' ? '~20-50/day' :
+                   config.timeframe === '5m' ? '~10-20/day' :
+                   config.timeframe === '15m' ? '~5-15/day' :
+                   config.timeframe === '30m' ? '~3-8/day' :
+                   config.timeframe === '1h' ? '~1-5/day' :
+                   config.timeframe === '4h' ? '~1-3/day' :
+                   config.timeframe === '1d' ? '~1-5/week' :
+                   '~1-2/week'}
+                </div>
+                <div className="text-sm text-gray-400">Trade signals</div>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Risk Level</label>
+              <div className="bg-gray-700 rounded-lg p-3 text-center">
+                <div className={`text-lg font-semibold ${
+                  config.timeframe === '1m' || config.timeframe === '5m' ? 'text-red-400' :
+                  config.timeframe === '15m' || config.timeframe === '30m' ? 'text-orange-400' :
+                  config.timeframe === '1h' || config.timeframe === '4h' ? 'text-yellow-400' :
+                  'text-green-400'
+                }`}>
+                  {config.timeframe === '1m' || config.timeframe === '5m' ? 'HIGH' :
+                   config.timeframe === '15m' || config.timeframe === '30m' ? 'MEDIUM-HIGH' :
+                   config.timeframe === '1h' || config.timeframe === '4h' ? 'MEDIUM' :
+                   'LOW-MEDIUM'}
+                </div>
+                <div className="text-sm text-gray-400">
+                  {config.timeframe === '1m' || config.timeframe === '5m' ? 'High frequency' :
+                   config.timeframe === '1d' || config.timeframe === '1w' ? 'Stable trends' :
+                   'Balanced approach'}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Quick Timeframe Switcher */}
+          <div className="border-t border-gray-600 pt-4">
+            <label className="block text-sm font-medium mb-3">Quick Timeframe Switch</label>
+            <div className="flex flex-wrap gap-2">
+              {timeframes.map((tf) => (
+                <button
+                  key={tf.value}
+                  onClick={() => {
+                    setConfig({...config, timeframe: tf.value});
+                    if (botStatus.running) {
+                      stopBot().then(() => {
+                        setTimeout(() => startBot(), 1000);
+                      });
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    config.timeframe === tf.value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-600 hover:bg-gray-500 text-gray-300'
+                  }`}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
+            
+            {botStatus.running && (
+              <div className="mt-3 p-3 bg-blue-900 bg-opacity-30 rounded-lg border border-blue-600">
+                <div className="flex items-center text-blue-400">
+                  <Activity className="w-4 h-4 mr-2" />
+                  <span className="text-sm">
+                    Bot is actively trading on <strong>{timeframes.find(tf => tf.value === config.timeframe)?.label}</strong> timeframe
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <div className="flex items-center justify-between">
