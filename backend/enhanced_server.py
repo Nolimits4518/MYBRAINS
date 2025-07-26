@@ -443,7 +443,10 @@ async def lifespan(app: FastAPI):
         app.mongodb = app.mongodb_client[os.environ.get('DB_NAME', 'enhanced_rsi_bot')]
         
         # Load connected platforms
+        platform_manager.load_credentials()  # Explicitly reload credentials
         bot_state["connected_platforms"] = platform_manager.get_connected_platforms()
+        
+        logging.info(f"✅ Platform manager initialized with {len(platform_manager.credentials)} platforms")
         
         # Start RSI Trading System
         logging.info("🚀 Starting Enhanced RSI Trading System...")
