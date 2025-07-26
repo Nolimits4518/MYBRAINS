@@ -388,6 +388,126 @@ const AddPlatformModal = ({ isOpen, onClose, onAdd }) => {
     }
   };
 
+  const renderFormField = (field) => {
+    const fieldValue = credentials[field.name] || credentials.additionalFields[field.name] || '';
+    
+    const updateFieldValue = (value) => {
+      if (['username', 'password', 'server'].includes(field.name)) {
+        setCredentials({...credentials, [field.name]: value});
+      } else {
+        setCredentials({
+          ...credentials,
+          additionalFields: {
+            ...credentials.additionalFields,
+            [field.name]: value
+          }
+        });
+      }
+    };
+
+    const fieldClasses = "w-full px-4 py-3 bg-gray-800/50 border border-cyan-400/30 rounded-lg text-white font-mono focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30";
+    
+    switch (field.type) {
+      case 'password':
+        return (
+          <div key={field.name} className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={fieldValue}
+              onChange={(e) => updateFieldValue(e.target.value)}
+              placeholder={field.placeholder}
+              className={`${fieldClasses} pr-12`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-cyan-400"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+        );
+      
+      case 'select':
+        return (
+          <select
+            key={field.name}
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            className={fieldClasses}
+          >
+            <option value="">{field.placeholder}</option>
+            {field.options?.map((option, index) => (
+              <option key={index} value={option}>{option}</option>
+            )) || [
+              <option key="demo" value="demo">Demo Server</option>,
+              <option key="live" value="live">Live Server</option>,
+              <option key="staging" value="staging">Staging Server</option>
+            ]}
+          </select>
+        );
+      
+      case 'email':
+        return (
+          <input
+            key={field.name}
+            type="email"
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={fieldClasses}
+          />
+        );
+      
+      case 'tel':
+        return (
+          <input
+            key={field.name}
+            type="tel"
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={fieldClasses}
+          />
+        );
+      
+      case 'number':
+        return (
+          <input
+            key={field.name}
+            type="number"
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={fieldClasses}
+          />
+        );
+      
+      case 'textarea':
+        return (
+          <textarea
+            key={field.name}
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={`${fieldClasses} h-24 resize-none`}
+          />
+        );
+      
+      default: // text
+        return (
+          <input
+            key={field.name}
+            type="text"
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={fieldClasses}
+          />
+        );
+    }
+  };
+
   const savePlatform = async () => {
     try {
       setLoading(true);
