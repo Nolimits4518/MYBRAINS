@@ -207,6 +207,8 @@ async def websocket_handler(websocket, path):
 
 async def broadcast_to_websockets(data):
     """Broadcast data to all connected WebSocket clients"""
+    global websocket_connections
+    
     if websocket_connections:
         message = json.dumps(data)
         disconnected = set()
