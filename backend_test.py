@@ -361,6 +361,237 @@ class EnhancedRSIBotTester:
         elif data.get("status") == "error" and "chat" in data.get("message", "").lower():
             self.log_test("Telegram API Structure", True, "API responds correctly even with chat errors")
 
+    def test_platform_connector_endpoints(self):
+        """Test Universal Trading Platform Connector endpoints"""
+        print("\n🔍 Testing Universal Trading Platform Connector...")
+        
+        # Test 1: GET /api/platform/list - Should return empty list initially
+        success, data = self.run_api_test("Platform List (Empty)", "GET", "api/platform/list")
+        if success:
+            platforms = data.get("data", [])
+            count = data.get("count", 0)
+            if count == 0 and isinstance(platforms, list):
+                self.log_test("Empty Platform List Structure", True, f"Found {count} platforms initially")
+            else:
+                self.log_test("Empty Platform List Structure", False, f"Expected 0 platforms, got {count}")
+        
+        # Test 2: POST /api/platform/analyze - Test platform analysis
+        analyze_data = {
+            "platform_name": "Test Platform",
+            "login_url": "https://test-platform.com/login"
+        }
+        success, data = self.run_api_test("Platform Analysis", "POST", "api/platform/analyze", data=analyze_data)
+        
+        platform_id = None
+        if success:
+            response_data = data.get("data", {})
+            required_fields = ["platform_name", "login_url", "login_fields", "submit_button", "two_fa_detected", "captcha_detected"]
+            
+            for field in required_fields:
+                if field in response_data:
+                    self.log_test(f"Platform Analysis Field: {field}", True)
+                else:
+                    self.log_test(f"Platform Analysis Field: {field}", False, f"Missing field in analysis response")
+            
+            # Check login_fields structure
+            login_fields = response_data.get("login_fields", [])
+            if isinstance(login_fields, list):
+                self.log_test("Login Fields Structure", True, f"Found {len(login_fields)} login fields")
+                
+                # Check field structure if fields exist
+                if login_fields:
+                    sample_field = login_fields[0]
+                    field_properties = ["name", "type", "label", "placeholder", "required"]
+                    for prop in field_properties:
+                        if prop in sample_field:
+                            self.log_test(f"Login Field Property: {prop}", True)
+                        else:
+                            self.log_test(f"Login Field Property: {prop}", False, f"Missing property in login field")
+            else:
+                self.log_test("Login Fields Structure", False, "login_fields is not a list")
+        
+        # Test 3: POST /api/2fa/generate-setup - Test 2FA setup generation
+        success, data = self.run_api_test("2FA Setup Generation", "POST", "api/2fa/generate-setup?account_name=TestAccount&issuer=TestBot")
+        
+        totp_secret = None
+        if success:
+            setup_data = data.get("data", {})
+            required_2fa_fields = ["secret", "qr_code", "backup_codes", "manual_entry"]
+            
+            for field in required_2fa_fields:
+                if field in setup_data:
+                    self.log_test(f"2FA Setup Field: {field}", True)
+                else:
+                    self.log_test(f"2FA Setup Field: {field}", False, f"Missing field in 2FA setup")
+            
+            # Validate QR code format
+            qr_code = setup_data.get("qr_code", "")
+            if qr_code.startswith("data:image/png;base64,"):
+                self.log_test("2FA QR Code Format", True, "QR code has correct base64 format")
+            else:
+                self.log_test("2FA QR Code Format", False, "QR code format is invalid")
+            
+            # Validate backup codes
+            backup_codes = setup_data.get("backup_codes", [])
+            if isinstance(backup_codes, list) and len(backup_codes) >= 5:
+                self.log_test("2FA Backup Codes", True, f"Generated {len(backup_codes)} backup codes")
+            else:
+                self.log_test("2FA Backup Codes", False, f"Expected at least 5 backup codes, got {len(backup_codes) if isinstance(backup_codes, list) else 0}")
+            
+            totp_secret = setup_data.get("secret", "")
+        
+        # Test 4: POST /api/platform/save-credentials - Test saving credentials
+        credentials_data = {
+            "platform_id": "test_platform_123",
+            "username": "testuser@example.com",
+            "password": "securepassword123",
+            "api_key": "",
+            "api_secret": "",
+            "enable_2fa": True,
+            "two_fa_method": "totp",
+            "totp_secret": totp_secret or "JBSWY3DPEHPK3PXP",
+            "sms_number": "",
+            "email": "testuser@example.com"
+        }
+        
+        success, data = self.run_api_test("Save Platform Credentials", "POST", "api/platform/save-credentials", data=credentials_data)
+        
+        saved_platform_id = None
+        if success:
+            saved_platform_id = data.get("platform_id", "")
+            if saved_platform_id:
+                self.log_test("Platform Credentials Saved", True, f"Platform ID: {saved_platform_id}")
+            else:
+                self.log_test("Platform Credentials Saved", False, "No platform_id returned")
+        
+        # Test 5: POST /api/2fa/verify - Test 2FA verification
+        if saved_platform_id and totp_secret:
+            # Generate a TOTP code for testing
+            import pyotp
+            try:
+                totp = pyotp.TOTP(totp_secret)
+                test_code = totp.now()
+                
+                verify_data = {
+                    "platform_id": saved_platform_id,
+                    "code": test_code
+                }
+                
+                success, data = self.run_api_test("2FA Code Verification", "POST", "api/2fa/verify", data=verify_data)
+                
+                if success:
+                    is_valid = data.get("valid", False)
+                    if is_valid:
+                        self.log_test("2FA Code Valid", True, "TOTP code verified successfully")
+                    else:
+                        self.log_test("2FA Code Valid", False, "TOTP code verification failed")
+                else:
+                    self.log_test("2FA Verification API", False, "2FA verification endpoint failed")
+                    
+            except ImportError:
+                self.log_test("2FA Code Generation", False, "pyotp not available for testing")
+            except Exception as e:
+                self.log_test("2FA Code Generation", False, f"Error generating TOTP: {str(e)}")
+        
+        # Test 6: GET /api/platform/list - Should now show the saved platform
+        success, data = self.run_api_test("Platform List (With Data)", "GET", "api/platform/list")
+        if success:
+            platforms = data.get("data", [])
+            count = data.get("count", 0)
+            
+            if count > 0:
+                self.log_test("Platform List After Save", True, f"Found {count} platform(s)")
+                
+                # Check platform structure
+                if platforms:
+                    sample_platform = platforms[0]
+                    platform_fields = ["platform_id", "platform_name", "login_url", "username", "is_connected", "last_used", "created_at", "two_fa_enabled"]
+                    
+                    for field in platform_fields:
+                        if field in sample_platform:
+                            self.log_test(f"Platform Field: {field}", True)
+                        else:
+                            self.log_test(f"Platform Field: {field}", False, f"Missing field in platform data")
+            else:
+                self.log_test("Platform List After Save", False, "No platforms found after saving credentials")
+        
+        # Test 7: POST /api/platform/connect/{platform_id} - Test connecting to platform
+        if saved_platform_id:
+            success, data = self.run_api_test("Platform Connection", "POST", f"api/platform/connect/{saved_platform_id}")
+            
+            if success:
+                is_connected = data.get("connected", False)
+                message = data.get("message", "")
+                
+                # Note: Connection may fail due to invalid URL, but API should respond properly
+                if "connected" in data:
+                    self.log_test("Platform Connection API", True, f"Connection response: {message}")
+                else:
+                    self.log_test("Platform Connection API", False, "Missing 'connected' field in response")
+            else:
+                # Connection failure is expected with test URL, but API should still work
+                if data.get("status") == "error":
+                    self.log_test("Platform Connection Error Handling", True, "API properly handles connection errors")
+                else:
+                    self.log_test("Platform Connection Error Handling", False, "API error handling unclear")
+        
+        # Test 8: POST /api/platform/disconnect/{platform_id} - Test disconnecting
+        if saved_platform_id:
+            success, data = self.run_api_test("Platform Disconnection", "POST", f"api/platform/disconnect/{saved_platform_id}")
+            
+            if success:
+                message = data.get("message", "")
+                if "disconnect" in message.lower():
+                    self.log_test("Platform Disconnection", True, message)
+                else:
+                    self.log_test("Platform Disconnection", False, "Unexpected disconnection message")
+        
+        # Test 9: DELETE /api/platform/{platform_id} - Test deleting platform
+        if saved_platform_id:
+            success, data = self.run_api_test("Platform Deletion", "DELETE", f"api/platform/{saved_platform_id}")
+            
+            if success:
+                message = data.get("message", "")
+                if "deleted" in message.lower():
+                    self.log_test("Platform Deletion", True, message)
+                else:
+                    self.log_test("Platform Deletion", False, "Unexpected deletion message")
+        
+        # Test 10: GET /api/platform/list - Should be empty again after deletion
+        success, data = self.run_api_test("Platform List (After Deletion)", "GET", "api/platform/list")
+        if success:
+            platforms = data.get("data", [])
+            count = data.get("count", 0)
+            
+            if count == 0:
+                self.log_test("Platform List After Deletion", True, "Platform list empty after deletion")
+            else:
+                self.log_test("Platform List After Deletion", False, f"Expected 0 platforms after deletion, got {count}")
+
+    def test_platform_connector_error_handling(self):
+        """Test error handling for platform connector endpoints"""
+        print("\n🔍 Testing Platform Connector Error Handling...")
+        
+        # Test invalid platform analysis
+        invalid_analyze_data = {
+            "platform_name": "",
+            "login_url": "invalid-url"
+        }
+        success, data = self.run_api_test("Invalid Platform Analysis", "POST", "api/platform/analyze", expected_status=500, data=invalid_analyze_data)
+        
+        # Test connecting to non-existent platform
+        success, data = self.run_api_test("Connect Non-existent Platform", "POST", "api/platform/connect/nonexistent", expected_status=500)
+        
+        # Test 2FA verification for non-existent platform
+        verify_data = {
+            "platform_id": "nonexistent",
+            "code": "123456"
+        }
+        success, data = self.run_api_test("2FA Verify Non-existent Platform", "POST", "api/2fa/verify", expected_status=404, data=verify_data)
+        
+        # Test deleting non-existent platform
+        success, data = self.run_api_test("Delete Non-existent Platform", "DELETE", "api/platform/nonexistent", expected_status=404)
+
     def run_comprehensive_tests(self):
         """Run all comprehensive tests for enhanced RSI bot"""
         print("🚀 Starting Comprehensive Enhanced RSI Trading Bot Tests")
