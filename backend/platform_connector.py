@@ -1151,6 +1151,8 @@ class PlatformConnectionManager:
                     "password": self.security.encrypt(creds.password),
                     "api_key": self.security.encrypt(creds.api_key) if creds.api_key else "",
                     "api_secret": self.security.encrypt(creds.api_secret) if creds.api_secret else "",
+                    "server": creds.server if hasattr(creds, 'server') else "",
+                    "additional_fields": creds.additional_fields if hasattr(creds, 'additional_fields') else {},
                     "created_at": creds.created_at,
                     "last_used": creds.last_used,
                     "is_active": creds.is_active
@@ -1169,12 +1171,13 @@ class PlatformConnectionManager:
                 credentials_data[platform_id] = encrypted_creds
             
             with open("platform_credentials.json", "w") as f:
-                json.dump(credentials_data, f)
+                json.dump(credentials_data, f, indent=2)
                 
-            logging.info("✅ Credentials saved successfully")
+            logging.info(f"✅ Saved {len(credentials_data)} platform credentials")
             
         except Exception as e:
             logging.error(f"❌ Failed to save credentials: {e}")
+            raise
     
     def load_credentials(self):
         """Load and decrypt credentials from file"""
