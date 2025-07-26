@@ -341,6 +341,8 @@ async def save_platform_credentials(request: PlatformCredentialsRequest):
             login_url=login_url,
             username=request.username,
             password=request.password,
+            server=request.server,
+            additional_fields=request.additional_fields,
             two_fa_config=two_fa_config
         )
         
