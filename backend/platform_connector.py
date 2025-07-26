@@ -1305,7 +1305,7 @@ class PlatformConnectionManager:
             raise
     
     async def connect_platform(self, platform_id: str) -> bool:
-        """Connect to platform using saved credentials"""
+        """Connect to platform and analyze trading interface"""
         try:
             if platform_id not in self.credentials:
                 raise ValueError(f"Platform {platform_id} not found")
@@ -1318,10 +1318,19 @@ class PlatformConnectionManager:
             login_success = await self.automator.perform_login(credentials, detected_form)
             
             if login_success:
+                # Analyze trading interface after successful login
+                interface_analysis = await self.automator.analyze_trading_interface()
+                
+                # Store interface analysis for later use
+                self.interface_data[platform_id] = interface_analysis
+                
                 self.active_connections[platform_id] = True
                 credentials.last_used = datetime.now().isoformat()
                 self.save_credentials()
-                logging.info(f"✅ Connected to platform: {platform_id}")
+                
+                logging.info(f"✅ Connected to platform and analyzed interface: {platform_id}")
+                logging.info(f"📊 Interface analysis: {len(interface_analysis.get('buy_elements', []))} buy elements, {len(interface_analysis.get('sell_elements', []))} sell elements")
+                
                 return True
             else:
                 logging.error(f"❌ Failed to connect to platform: {platform_id}")
@@ -1332,7 +1341,7 @@ class PlatformConnectionManager:
             return False
     
     async def execute_trade_on_platform(self, platform_id: str, order: TradeOrder) -> TradeResult:
-        """Execute trade on connected platform"""
+        """Execute trade on connected platform using interface analysis"""
         try:
             if platform_id not in self.active_connections or not self.active_connections[platform_id]:
                 # Try to connect first
@@ -1344,8 +1353,15 @@ class PlatformConnectionManager:
                         message="Platform not connected"
                     )
             
-            credentials = self.credentials[platform_id]
-            result = await self.automator.execute_trade(order, credentials.platform_name)
+            # Get stored interface analysis
+            interface_analysis = self.interface_data.get(platform_id, {})
+            if not interface_analysis:
+                # Re-analyze interface if not stored
+                interface_analysis = await self.automator.analyze_trading_interface()
+                self.interface_data[platform_id] = interface_analysis
+            
+            # Execute trade using interface analysis
+            result = await self.automator.execute_trade(order, interface_analysis)
             
             logging.info(f"✅ Trade executed on {platform_id}: {result.order_id}")
             return result
@@ -1357,6 +1373,59 @@ class PlatformConnectionManager:
                 order_id="",
                 message=f"Trade execution failed: {str(e)}"
             )
+    
+    async def close_position_on_platform(self, platform_id: str, position_symbol: str) -> TradeResult:
+        """Close position on connected platform"""
+        try:
+            if platform_id not in self.active_connections or not self.active_connections[platform_id]:
+                return TradeResult(
+                    success=False,
+                    order_id="",
+                    message="Platform not connected"
+                )
+            
+            # Get stored interface analysis
+            interface_analysis = self.interface_data.get(platform_id, {})
+            if not interface_analysis:
+                interface_analysis = await self.automator.analyze_trading_interface()
+                self.interface_data[platform_id] = interface_analysis
+            
+            # Close position using interface analysis
+            result = await self.automator.close_position(position_symbol, interface_analysis)
+            
+            logging.info(f"✅ Position closed on {platform_id}: {result.order_id}")
+            return result
+            
+        except Exception as e:
+            logging.error(f"❌ Position close failed on {platform_id}: {e}")
+            return TradeResult(
+                success=False,
+                order_id="",
+                message=f"Position close failed: {str(e)}"
+            )
+    
+    async def get_platform_interface_info(self, platform_id: str) -> Dict[str, Any]:
+        """Get stored interface analysis for a platform"""
+        try:
+            if platform_id not in self.active_connections or not self.active_connections[platform_id]:
+                return {"error": "Platform not connected"}
+            
+            interface_analysis = self.interface_data.get(platform_id, {})
+            
+            if not interface_analysis:
+                # Re-analyze interface if not stored
+                interface_analysis = await self.automator.analyze_trading_interface()
+                self.interface_data[platform_id] = interface_analysis
+            
+            return {
+                "platform_id": platform_id,
+                "interface_analysis": interface_analysis,
+                "last_updated": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logging.error(f"❌ Failed to get interface info for {platform_id}: {e}")
+            return {"error": str(e)}
     
     def get_connected_platforms(self) -> List[Dict]:
         """Get list of connected platforms"""
