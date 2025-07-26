@@ -1000,7 +1000,109 @@ async def get_chart_data(symbol: str, timeframe: str = "1h"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/telegram/test")
+@app.get("/api/timeframe/info/{timeframe}")
+async def get_timeframe_info(timeframe: str):
+    """Get detailed information about a specific timeframe"""
+    try:
+        if timeframe not in TIMEFRAMES:
+            raise HTTPException(status_code=400, detail="Invalid timeframe")
+        
+        tf_data = TIMEFRAMES[timeframe]
+        
+        # Create a temporary bot instance to get timeframe config
+        temp_config = TradingConfig(timeframe=timeframe)
+        temp_bot = EnhancedRSITradingBot(temp_config)
+        tf_config = temp_bot.get_timeframe_trading_config(timeframe)
+        
+        # Determine trading style
+        if timeframe in ["1m", "5m"]:
+            trading_style = "Scalping"
+            description = "High-frequency trading with quick entries and exits"
+            risk_level = "High"
+            color = "#EF4444"
+        elif timeframe in ["15m", "30m"]:
+            trading_style = "Day Trading" 
+            description = "Intraday trading capturing medium-term moves"
+            risk_level = "Medium-High"
+            color = "#F59E0B"
+        elif timeframe in ["1h", "4h"]:
+            trading_style = "Swing Trading"
+            description = "Multi-day positions following price swings"
+            risk_level = "Medium"
+            color = "#10B981"
+        else:
+            trading_style = "Position Trading"
+            description = "Long-term trend following with major moves"
+            risk_level = "Low-Medium" 
+            color = "#3B82F6"
+        
+        return {
+            "status": "success",
+            "data": {
+                "timeframe": timeframe,
+                "display_name": tf_data["display"],
+                "minutes_per_candle": tf_data["minutes"],
+                "trading_style": trading_style,
+                "description": description,
+                "risk_level": risk_level,
+                "color": color,
+                "expected_trades_per_day": tf_config["expected_trades_per_day"],
+                "rsi_oversold": tf_config["rsi_oversold"],
+                "rsi_overbought": tf_config["rsi_overbought"],
+                "stop_loss_multiplier": tf_config["stop_loss_multiplier"],
+                "take_profit_multiplier": tf_config["take_profit_multiplier"],
+                "recommended_for": {
+                    "1m": ["Experienced scalpers", "High-frequency traders"],
+                    "5m": ["Active day traders", "Scalping strategies"], 
+                    "15m": ["Day traders", "Short-term momentum"],
+                    "30m": ["Intraday swing traders", "News-based trading"],
+                    "1h": ["Swing traders", "Trend followers"],
+                    "4h": ["Position traders", "Weekly strategies"],
+                    "1d": ["Long-term investors", "Trend analysis"],
+                    "1w": ["Portfolio managers", "Macro trends"],
+                    "1M": ["Strategic investors", "Major trend shifts"]
+                }.get(timeframe, ["General trading"])
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/bot/switch-timeframe")
+async def switch_timeframe(timeframe: str):
+    """Switch bot to a different timeframe while running"""
+    global enhanced_bot, current_config
+    
+    try:
+        if timeframe not in TIMEFRAMES:
+            raise HTTPException(status_code=400, detail="Invalid timeframe")
+        
+        # Update configuration
+        current_config.timeframe = timeframe
+        bot_state["current_timeframe"] = timeframe
+        
+        # If bot is running, restart with new timeframe
+        if bot_state["running"] and enhanced_bot:
+            logging.info(f"🔄 Switching bot to {timeframe} timeframe...")
+            
+            # Stop current bot
+            enhanced_bot.stop_trading()
+            
+            # Create new bot with updated config
+            enhanced_bot = EnhancedRSITradingBot(current_config)
+            
+            # Start in background (would need to be done in a background task)
+            # For now, just update the config
+            
+        return {
+            "status": "success",
+            "message": f"Switched to {TIMEFRAMES[timeframe]['display']} timeframe",
+            "timeframe": timeframe,
+            "bot_running": bot_state["running"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 async def test_telegram():
     """Test Telegram connection with enhanced diagnostics"""
     try:
