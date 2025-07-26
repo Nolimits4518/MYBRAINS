@@ -920,4 +920,245 @@ const PlatformConnector = () => {
   );
 };
 
+// 📊 Interface Analysis Modal
+const InterfaceAnalysisModal = ({ isOpen, onClose, platform, interfaceData }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="holo-card w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white flex items-center">
+            <Eye className="w-6 h-6 mr-3" />
+            Trading Interface Analysis
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {platform && (
+          <div className="mb-6 p-4 bg-blue-900/20 border border-blue-600/30 rounded-lg">
+            <h3 className="font-semibold text-blue-400 mb-2">Platform: {platform.platform_name}</h3>
+            <p className="text-sm text-gray-300">{platform.login_url}</p>
+          </div>
+        )}
+
+        {interfaceData ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold text-green-400 mb-3">✅ Buy Elements Found</h4>
+                <div className="space-y-2">
+                  {interfaceData.interface_analysis?.buy_elements?.map((element, index) => (
+                    <div key={index} className="p-3 bg-green-900/20 border border-green-600/30 rounded-lg">
+                      <p className="text-sm text-white font-mono">{element.text}</p>
+                      <p className="text-xs text-green-400 mt-1">{element.selector}</p>
+                    </div>
+                  )) || <p className="text-gray-400">No buy elements detected</p>}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-red-400 mb-3">🔴 Sell Elements Found</h4>
+                <div className="space-y-2">
+                  {interfaceData.interface_analysis?.sell_elements?.map((element, index) => (
+                    <div key={index} className="p-3 bg-red-900/20 border border-red-600/30 rounded-lg">
+                      <p className="text-sm text-white font-mono">{element.text}</p>
+                      <p className="text-xs text-red-400 mt-1">{element.selector}</p>
+                    </div>
+                  )) || <p className="text-gray-400">No sell elements detected</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <h4 className="font-semibold text-cyan-400 mb-3">📝 Trading Form Inputs</h4>
+                <div className="space-y-2">
+                  {interfaceData.interface_analysis?.symbol_input && (
+                    <div className="p-2 bg-cyan-900/20 border border-cyan-600/30 rounded">
+                      <p className="text-xs text-cyan-400">Symbol Input</p>
+                      <p className="text-sm text-white font-mono">{interfaceData.interface_analysis.symbol_input.selector}</p>
+                    </div>
+                  )}
+                  {interfaceData.interface_analysis?.quantity_input && (
+                    <div className="p-2 bg-cyan-900/20 border border-cyan-600/30 rounded">
+                      <p className="text-xs text-cyan-400">Quantity Input</p>
+                      <p className="text-sm text-white font-mono">{interfaceData.interface_analysis.quantity_input.selector}</p>
+                    </div>
+                  )}
+                  {interfaceData.interface_analysis?.price_input && (
+                    <div className="p-2 bg-cyan-900/20 border border-cyan-600/30 rounded">
+                      <p className="text-xs text-cyan-400">Price Input</p>
+                      <p className="text-sm text-white font-mono">{interfaceData.interface_analysis.price_input.selector}</p>
+                    </div>
+                  )}
+                  {!interfaceData.interface_analysis?.symbol_input && !interfaceData.interface_analysis?.quantity_input && !interfaceData.interface_analysis?.price_input && (
+                    <p className="text-gray-400">No form inputs detected</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-purple-400 mb-3">🎯 Position Management</h4>
+                <div className="space-y-2">
+                  {interfaceData.interface_analysis?.positions_table && (
+                    <div className="p-2 bg-purple-900/20 border border-purple-600/30 rounded">
+                      <p className="text-xs text-purple-400">Positions Table</p>
+                      <p className="text-sm text-white font-mono">{interfaceData.interface_analysis.positions_table}</p>
+                    </div>
+                  )}
+                  {interfaceData.interface_analysis?.close_position_elements?.map((element, index) => (
+                    <div key={index} className="p-2 bg-purple-900/20 border border-purple-600/30 rounded">
+                      <p className="text-xs text-purple-400">Close Button</p>
+                      <p className="text-sm text-white font-mono">{element}</p>
+                    </div>
+                  )) || <p className="text-gray-400">No position management detected</p>}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-yellow-400 mb-3">💰 Account Info</h4>
+                <div className="space-y-2">
+                  {interfaceData.interface_analysis?.balance_display && (
+                    <div className="p-2 bg-yellow-900/20 border border-yellow-600/30 rounded">
+                      <p className="text-xs text-yellow-400">Balance Display</p>
+                      <p className="text-sm text-white font-mono">{interfaceData.interface_analysis.balance_display.text}</p>
+                    </div>
+                  )}
+                  {!interfaceData.interface_analysis?.balance_display && (
+                    <p className="text-gray-400">No balance info detected</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {interfaceData.interface_analysis?.current_positions && interfaceData.interface_analysis.current_positions.length > 0 && (
+              <div>
+                <h4 className="font-semibold text-orange-400 mb-3">📈 Current Positions</h4>
+                <div className="space-y-2">
+                  {interfaceData.interface_analysis.current_positions.map((position, index) => (
+                    <div key={index} className="p-3 bg-orange-900/20 border border-orange-600/30 rounded-lg">
+                      <p className="text-sm text-white font-mono">{position.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="cyber-loader w-12 h-12 mx-auto mb-4" />
+            <p className="text-gray-400">Analyzing trading interface...</p>
+          </div>
+        )}
+
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={onClose}
+            className="neon-button"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 🎯 Close Position Modal
+const ClosePositionModal = ({ isOpen, onClose, platform, onSubmit }) => {
+  const [positionSymbol, setPositionSymbol] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!positionSymbol.trim()) {
+      alert('Please enter a position symbol');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await onSubmit(positionSymbol.trim());
+      setPositionSymbol('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="holo-card w-full max-w-md">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-white flex items-center">
+            <Target className="w-5 h-5 mr-3" />
+            Close Position
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {platform && (
+          <div className="mb-6 p-4 bg-blue-900/20 border border-blue-600/30 rounded-lg">
+            <h3 className="font-semibold text-blue-400 mb-2">Platform: {platform.platform_name}</h3>
+            <p className="text-sm text-gray-300">Connected and ready to close positions</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-mono text-cyan-400 mb-3">
+              Position Symbol
+            </label>
+            <input
+              type="text"
+              value={positionSymbol}
+              onChange={(e) => setPositionSymbol(e.target.value)}
+              placeholder="e.g., EURUSD, BTCUSD, AAPL"
+              className="w-full px-4 py-3 bg-gray-800/50 border border-cyan-400/30 rounded-lg text-white font-mono focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30"
+            />
+          </div>
+
+          <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-4">
+            <p className="text-sm text-yellow-400">
+              ⚠️ This will close the specified position on the trading platform. Make sure the symbol is correct.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex space-x-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-600 text-gray-400 rounded-lg hover:bg-gray-600/10"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !positionSymbol.trim()}
+            className="flex-1 neon-button neon-button-error disabled:opacity-50"
+          >
+            {loading ? (
+              <div className="cyber-loader w-4 h-4 mr-2" />
+            ) : (
+              <Target className="w-4 h-4 mr-2" />
+            )}
+            Close Position
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default PlatformConnector;
