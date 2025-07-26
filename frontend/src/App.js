@@ -557,6 +557,66 @@ function App() {
             </div>
             
             <div className="flex items-center space-x-4">
+              {/* Quick Timeframe Selector */}
+              <div className="flex items-center space-x-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <Select
+                  value={timeframes.find(tf => tf.value === config.timeframe)}
+                  onChange={(selectedOption) => {
+                    setConfig({...config, timeframe: selectedOption.value});
+                    if (botStatus.running) {
+                      // Auto-restart bot with new timeframe
+                      stopBot().then(() => {
+                        setTimeout(() => startBot(), 1000);
+                      });
+                    }
+                  }}
+                  options={timeframes}
+                  styles={{
+                    ...selectStyles,
+                    control: (styles) => ({
+                      ...styles,
+                      backgroundColor: '#1F2937',
+                      borderColor: '#374151',
+                      minWidth: '120px',
+                      minHeight: '36px'
+                    })
+                  }}
+                  placeholder="Timeframe"
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Quick Symbol Selector */}
+              <div className="flex items-center space-x-2">
+                <DollarSign className="w-4 h-4 text-gray-400" />
+                <Select
+                  value={cryptoList.find(c => c.value === config.symbol)}
+                  onChange={(selectedOption) => {
+                    setConfig({...config, symbol: selectedOption.value});
+                    if (botStatus.running) {
+                      // Auto-restart bot with new symbol
+                      stopBot().then(() => {
+                        setTimeout(() => startBot(), 1000);
+                      });
+                    }
+                  }}
+                  options={cryptoList.slice(0, 20)} // Top 20 cryptos for quick access
+                  styles={{
+                    ...selectStyles,
+                    control: (styles) => ({
+                      ...styles,
+                      backgroundColor: '#1F2937',
+                      borderColor: '#374151',
+                      minWidth: '140px',
+                      minHeight: '36px'
+                    })
+                  }}
+                  placeholder="Symbol"
+                  className="text-sm"
+                />
+              </div>
+              
               <button
                 onClick={testTelegram}
                 disabled={loading}
