@@ -359,8 +359,8 @@ const AddPlatformModal = ({ isOpen, onClose, onAdd }) => {
   const [credentials, setCredentials] = useState({
     username: '',
     password: '',
-    apiKey: '',
-    apiSecret: ''
+    server: '',
+    additionalFields: {}
   });
   const [enable2FA, setEnable2FA] = useState(false);
   const [twoFAConfig, setTwoFAConfig] = useState(null);
