@@ -43,8 +43,10 @@ import {
   Globe,
   Flame,
   Star,
-  Hexagon
+  Hexagon,
+  Link2
 } from 'lucide-react';
+import PlatformConnector from './components/PlatformConnector';
 import './App.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
