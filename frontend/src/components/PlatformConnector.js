@@ -249,7 +249,7 @@ const TwoFASetupModal = ({ isOpen, onClose, onSave, platformId }) => {
 };
 
 // 🌐 Platform Connection Card
-const PlatformCard = ({ platform, onConnect, onDisconnect, onDelete, onTrade }) => {
+const PlatformCard = ({ platform, onConnect, onDisconnect, onDelete, onTrade, onViewInterface, onClosePosition }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -306,45 +306,60 @@ const PlatformCard = ({ platform, onConnect, onDisconnect, onDelete, onTrade }) 
         </div>
       </div>
 
-      <div className="flex space-x-2 mt-6">
+      <div className="grid grid-cols-2 gap-2 mt-6">
         {platform.is_connected ? (
           <>
             <button
               onClick={() => onTrade(platform)}
-              className="flex-1 neon-button neon-button-success"
+              className="neon-button neon-button-success text-sm"
             >
-              <Zap className="w-4 h-4 mr-2" />
+              <Zap className="w-4 h-4 mr-1" />
               Trade
+            </button>
+            <button
+              onClick={() => onViewInterface(platform)}
+              className="neon-button text-sm"
+            >
+              <Eye className="w-4 h-4 mr-1" />
+              Interface
+            </button>
+            <button
+              onClick={() => onClosePosition(platform)}
+              className="neon-button text-sm"
+            >
+              <Target className="w-4 h-4 mr-1" />
+              Close Position
             </button>
             <button
               onClick={handleDisconnect}
               disabled={loading}
-              className="px-4 py-2 border border-yellow-600 text-yellow-400 rounded-lg hover:bg-yellow-600/10 disabled:opacity-50"
+              className="px-3 py-2 border border-yellow-600 text-yellow-400 rounded-lg hover:bg-yellow-600/10 disabled:opacity-50 text-sm"
             >
               <Unlink className="w-4 h-4" />
             </button>
           </>
         ) : (
-          <button
-            onClick={handleConnect}
-            disabled={loading}
-            className="flex-1 neon-button"
-          >
-            {loading ? (
-              <div className="cyber-loader w-4 h-4 mr-2" />
-            ) : (
-              <Link className="w-4 h-4 mr-2" />
-            )}
-            Connect
-          </button>
+          <>
+            <button
+              onClick={handleConnect}
+              disabled={loading}
+              className="neon-button text-sm"
+            >
+              {loading ? (
+                <div className="cyber-loader w-4 h-4 mr-1" />
+              ) : (
+                <Link className="w-4 h-4 mr-1" />
+              )}
+              Connect
+            </button>
+            <button
+              onClick={() => onDelete(platform.platform_id)}
+              className="px-3 py-2 border border-red-600 text-red-400 rounded-lg hover:bg-red-600/10 text-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
         )}
-        
-        <button
-          onClick={() => onDelete(platform.platform_id)}
-          className="px-4 py-2 border border-red-600 text-red-400 rounded-lg hover:bg-red-600/10"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
       </div>
     </motion.div>
   );
