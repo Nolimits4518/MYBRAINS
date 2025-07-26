@@ -1276,9 +1276,10 @@ class PlatformConnectionManager:
             )
     
     async def save_platform_credentials(self, platform_name: str, login_url: str, 
-                                      username: str, password: str, 
+                                      username: str, password: str, server: str = "",
+                                      additional_fields: dict = None,
                                       two_fa_config: Optional[TwoFAConfig] = None) -> str:
-        """Save platform credentials"""
+        """Save platform credentials with server and additional fields"""
         try:
             platform_id = f"{platform_name.lower()}_{int(datetime.now().timestamp())}"
             
@@ -1293,6 +1294,10 @@ class PlatformConnectionManager:
                 last_used="",
                 is_active=True
             )
+            
+            # Store server and additional fields (we can extend the model later)
+            credentials.server = server
+            credentials.additional_fields = additional_fields or {}
             
             self.credentials[platform_id] = credentials
             self.active_connections[platform_id] = False
