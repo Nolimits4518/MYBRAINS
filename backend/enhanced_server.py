@@ -279,6 +279,14 @@ background_tasks = []
 
 trading_config = TradingConfig()
 
+# Bot state tracking
+bot_state = {
+    "connected_platforms": [],
+    "active_trades": [],
+    "total_profit": 0,
+    "win_rate": 0
+}
+
 # Global bot state (keeping existing functionality)
 bot_state = {
     "running": False,
