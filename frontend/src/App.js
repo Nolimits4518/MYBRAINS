@@ -836,6 +836,7 @@ function App() {
             <TabButton id="neural-core" label="Neural Core" icon={Cpu} active={selectedTab === 'neural-core'} onClick={setSelectedTab} />
             <TabButton id="quantum-charts" label="Quantum Charts" icon={BarChart3} active={selectedTab === 'quantum-charts'} onClick={setSelectedTab} />
             <TabButton id="position-matrix" label="Position Matrix" icon={Target} active={selectedTab === 'position-matrix'} onClick={setSelectedTab} />
+            <TabButton id="platform-connector" label="Platform Connector" icon={Globe} active={selectedTab === 'platform-connector'} onClick={setSelectedTab} />
             <TabButton id="system-diagnostics" label="System Diagnostics" icon={Activity} active={selectedTab === 'system-diagnostics'} onClick={setSelectedTab} />
           </div>
         </div>
