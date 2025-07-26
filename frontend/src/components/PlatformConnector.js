@@ -422,7 +422,7 @@ const AddPlatformModal = ({ isOpen, onClose, onAdd }) => {
     setPlatformName('');
     setLoginUrl('');
     setDetectedForm(null);
-    setCredentials({ username: '', password: '', apiKey: '', apiSecret: '' });
+    setCredentials({ username: '', password: '', server: '', additionalFields: {} });
     setEnable2FA(false);
     setTwoFAConfig(null);
   };
