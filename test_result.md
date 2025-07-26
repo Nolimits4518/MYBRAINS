@@ -192,6 +192,7 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Complete RSI Trading System Integration"
     - "Platform Connector Backend Integration"
     - "Enhanced Platform Connector with Intelligent Trading Features"
     - "Platform Connector UI Integration"
