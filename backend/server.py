@@ -465,7 +465,7 @@ class EnhancedRSITradingBot:
                 await asyncio.sleep(60)
     
     async def check_trading_signals(self, ohlcv_data: List[OHLCV]):
-        """Enhanced signal detection with timeframe consideration"""
+        """Enhanced signal detection with comprehensive timeframe-specific logic"""
         if len(ohlcv_data) < self.config.rsi_length + 2:
             return
         
@@ -476,23 +476,150 @@ class EnhancedRSITradingBot:
         if current_rsi is None or prev_rsi is None:
             return
         
-        # Enhanced signal logic based on timeframe
-        if not trade_state.is_buy_active and not trade_state.is_sell_active:
-            # Buy signal: RSI crosses above 30 from oversold
-            if prev_rsi <= 30 and current_rsi > 30:
-                await self.execute_trade_signal("buy", current_price, "RSI Exit Oversold")
+        # Get timeframe-specific parameters
+        timeframe_config = self.get_timeframe_trading_config(self.config.timeframe)
+        
+        # Don't trade if already in position
+        if trade_state.is_buy_active or trade_state.is_sell_active:
+            return
+        
+        # Timeframe-specific signal logic
+        signals = []
+        
+        # 1-Minute and 5-Minute: Scalping Strategy
+        if self.config.timeframe in ["1m", "5m"]:
+            # Quick RSI mean reversion
+            if prev_rsi <= 25 and current_rsi > 30:
+                signals.append(("buy", "Quick Oversold Recovery"))
+            elif prev_rsi >= 75 and current_rsi < 70:
+                signals.append(("sell", "Quick Overbought Correction"))
             
-            # Sell signal: RSI crosses below 70 from overbought  
-            elif prev_rsi >= 70 and current_rsi < 70:
-                await self.execute_trade_signal("sell", current_price, "RSI Exit Overbought")
+            # Fast momentum signals
+            elif current_rsi > prev_rsi and current_rsi > 55 and prev_rsi < 50:
+                signals.append(("buy", "Fast Bull Momentum"))
+            elif current_rsi < prev_rsi and current_rsi < 45 and prev_rsi > 50:
+                signals.append(("sell", "Fast Bear Momentum"))
+        
+        # 15-Minute and 30-Minute: Day Trading Strategy
+        elif self.config.timeframe in ["15m", "30m"]:
+            # Medium-term RSI signals with trend confirmation
+            if prev_rsi <= 30 and current_rsi > 35:
+                # Check if we're in an uptrend (price above recent average)
+                recent_closes = [candle.close for candle in ohlcv_data[-10:]]
+                if current_price > sum(recent_closes) / len(recent_closes):
+                    signals.append(("buy", "RSI Oversold + Uptrend"))
             
-            # Additional signals for shorter timeframes
-            elif self.config.timeframe in ["1m", "5m", "15m"]:
-                # Quick scalping signals
-                if prev_rsi <= 40 and current_rsi > 50:
-                    await self.execute_trade_signal("buy", current_price, "Quick Bull Signal")
-                elif prev_rsi >= 60 and current_rsi < 50:
-                    await self.execute_trade_signal("sell", current_price, "Quick Bear Signal")
+            elif prev_rsi >= 70 and current_rsi < 65:
+                # Check if we're in a downtrend
+                recent_closes = [candle.close for candle in ohlcv_data[-10:]]
+                if current_price < sum(recent_closes) / len(recent_closes):
+                    signals.append(("sell", "RSI Overbought + Downtrend"))
+        
+        # 1-Hour and 4-Hour: Swing Trading Strategy
+        elif self.config.timeframe in ["1h", "4h"]:
+            # Classic RSI divergence and momentum
+            if prev_rsi <= 35 and current_rsi > 40:
+                signals.append(("buy", "RSI Momentum Shift Up"))
+            elif prev_rsi >= 65 and current_rsi < 60:
+                signals.append(("sell", "RSI Momentum Shift Down"))
+            
+            # Strong trend continuation signals
+            if current_rsi > 60 and prev_rsi > 55 and current_price > ohlcv_data[-5].close:
+                signals.append(("buy", "Strong Bull Trend"))
+            elif current_rsi < 40 and prev_rsi < 45 and current_price < ohlcv_data[-5].close:
+                signals.append(("sell", "Strong Bear Trend"))
+        
+        # 1-Day, 1-Week, 1-Month: Position Trading Strategy  
+        elif self.config.timeframe in ["1d", "1w", "1M"]:
+            # Long-term trend following with RSI confirmation
+            if prev_rsi <= 40 and current_rsi > 45:
+                # Long-term uptrend check (20-period moving average)
+                if len(ohlcv_data) >= 20:
+                    ma_20 = sum([candle.close for candle in ohlcv_data[-20:]]) / 20
+                    if current_price > ma_20:
+                        signals.append(("buy", "Long-term Trend + RSI Recovery"))
+            
+            elif prev_rsi >= 60 and current_rsi < 55:
+                # Long-term downtrend check
+                if len(ohlcv_data) >= 20:
+                    ma_20 = sum([candle.close for candle in ohlcv_data[-20:]]) / 20
+                    if current_price < ma_20:
+                        signals.append(("sell", "Long-term Decline + RSI Weakness"))
+        
+        # Execute the first valid signal
+        if signals:
+            signal_type, reason = signals[0]
+            await self.execute_trade_signal(signal_type, current_price, reason)
+    
+    def get_timeframe_trading_config(self, timeframe: str) -> dict:
+        """Get timeframe-specific trading configuration"""
+        configs = {
+            "1m": {
+                "stop_loss_multiplier": 0.5,  # Tighter stops for scalping
+                "take_profit_multiplier": 1.0,
+                "rsi_oversold": 25,
+                "rsi_overbought": 75,
+                "expected_trades_per_day": 30
+            },
+            "5m": {
+                "stop_loss_multiplier": 0.7,
+                "take_profit_multiplier": 1.2,
+                "rsi_oversold": 28,
+                "rsi_overbought": 72,
+                "expected_trades_per_day": 15
+            },
+            "15m": {
+                "stop_loss_multiplier": 0.8,
+                "take_profit_multiplier": 1.5,
+                "rsi_oversold": 30,
+                "rsi_overbought": 70,
+                "expected_trades_per_day": 8
+            },
+            "30m": {
+                "stop_loss_multiplier": 1.0,
+                "take_profit_multiplier": 1.8,
+                "rsi_oversold": 32,
+                "rsi_overbought": 68,
+                "expected_trades_per_day": 5
+            },
+            "1h": {
+                "stop_loss_multiplier": 1.0,
+                "take_profit_multiplier": 2.0,
+                "rsi_oversold": 35,
+                "rsi_overbought": 65,
+                "expected_trades_per_day": 3
+            },
+            "4h": {
+                "stop_loss_multiplier": 1.2,
+                "take_profit_multiplier": 2.5,
+                "rsi_oversold": 38,
+                "rsi_overbought": 62,
+                "expected_trades_per_day": 1
+            },
+            "1d": {
+                "stop_loss_multiplier": 1.5,
+                "take_profit_multiplier": 3.0,
+                "rsi_oversold": 40,
+                "rsi_overbought": 60,
+                "expected_trades_per_day": 0.2  # ~1 per week
+            },
+            "1w": {
+                "stop_loss_multiplier": 2.0,
+                "take_profit_multiplier": 4.0,
+                "rsi_oversold": 42,
+                "rsi_overbought": 58,
+                "expected_trades_per_day": 0.05  # ~1 per month
+            },
+            "1M": {
+                "stop_loss_multiplier": 2.5,
+                "take_profit_multiplier": 5.0,
+                "rsi_oversold": 45,
+                "rsi_overbought": 55,
+                "expected_trades_per_day": 0.01  # ~1 per quarter
+            }
+        }
+        
+        return configs.get(timeframe, configs["1h"])  # Default to 1h config
     
     async def execute_trade_signal(self, signal_type: str, price: float, reason: str):
         """Execute enhanced trade signal with metrics tracking"""
