@@ -843,6 +843,71 @@ async def verify_2fa_code(request: TwoFAVerificationRequest):
 # EXISTING ENDPOINTS (Enhanced)
 # ========================================
 
+@app.get("/api/bot/signals")
+async def get_current_signals():
+    """Get current trading signals"""
+    try:
+        return {
+            "status": "success",
+            "data": {
+                "signals": current_signals,
+                "auto_trading_enabled": auto_trading_enabled,
+                "last_update": datetime.now().isoformat()
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/bot/toggle-auto-trading")
+async def toggle_auto_trading():
+    """Toggle auto trading on/off"""
+    try:
+        global auto_trading_enabled
+        auto_trading_enabled = not auto_trading_enabled
+        
+        return {
+            "status": "success",
+            "data": {
+                "auto_trading_enabled": auto_trading_enabled,
+                "message": f"Auto trading {'enabled' if auto_trading_enabled else 'disabled'}"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/bot/update-config")
+async def update_trading_config(config: dict):
+    """Update trading configuration"""
+    try:
+        global trading_config
+        
+        if "rsi_oversold" in config:
+            trading_config.rsi_oversold = config["rsi_oversold"]
+        if "rsi_overbought" in config:
+            trading_config.rsi_overbought = config["rsi_overbought"]
+        if "position_size" in config:
+            trading_config.position_size = config["position_size"]
+        if "stop_loss_pct" in config:
+            trading_config.stop_loss_pct = config["stop_loss_pct"]
+        if "take_profit_pct" in config:
+            trading_config.take_profit_pct = config["take_profit_pct"]
+        
+        return {
+            "status": "success",
+            "data": {
+                "message": "Trading configuration updated",
+                "config": {
+                    "rsi_oversold": trading_config.rsi_oversold,
+                    "rsi_overbought": trading_config.rsi_overbought,
+                    "position_size": trading_config.position_size,
+                    "stop_loss_pct": trading_config.stop_loss_pct,
+                    "take_profit_pct": trading_config.take_profit_pct
+                }
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/bot/status")
 async def get_bot_status():
     """Get current bot status with platform info"""
