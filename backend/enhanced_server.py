@@ -437,37 +437,46 @@ async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
     global bot_active, background_tasks
     
-    # Startup
-    app.mongodb_client = AsyncIOMotorClient(MONGO_URL)
-    app.mongodb = app.mongodb_client[os.environ.get('DB_NAME', 'enhanced_rsi_bot')]
+    try:
+        # Startup
+        app.mongodb_client = AsyncIOMotorClient(MONGO_URL)
+        app.mongodb = app.mongodb_client[os.environ.get('DB_NAME', 'enhanced_rsi_bot')]
+        
+        # Load connected platforms
+        bot_state["connected_platforms"] = platform_manager.get_connected_platforms()
+        
+        # Start RSI Trading System
+        logging.info("🚀 Starting Enhanced RSI Trading System...")
+        bot_active = True
+        
+        # Start background tasks (but don't wait for them)
+        rsi_task = asyncio.create_task(rsi_monitoring_task())
+        background_tasks.append(rsi_task)
+        
+        logging.info("✅ Enhanced RSI Trading System started successfully")
+        
+        yield
+        
+    except Exception as e:
+        logging.error(f"❌ Error during startup: {e}")
+        yield
     
-    # Load connected platforms
-    bot_state["connected_platforms"] = platform_manager.get_connected_platforms()
-    
-    # Start RSI Trading System
-    logging.info("🚀 Starting Enhanced RSI Trading System...")
-    bot_active = True
-    
-    # Start background tasks
-    rsi_task = asyncio.create_task(rsi_monitoring_task())
-    background_tasks.append(rsi_task)
-    
-    yield
-    
-    # Shutdown
-    logging.info("🛑 Shutting down Enhanced RSI Trading System...")
-    bot_active = False
-    
-    # Cancel background tasks
-    for task in background_tasks:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-    
-    # Close database connection
-    app.mongodb_client.close()
+    finally:
+        # Shutdown
+        logging.info("🛑 Shutting down Enhanced RSI Trading System...")
+        bot_active = False
+        
+        # Cancel background tasks
+        for task in background_tasks:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        
+        # Close database connection
+        if hasattr(app, 'mongodb_client'):
+            app.mongodb_client.close()
 
 app = FastAPI(lifespan=lifespan, title="Enhanced RSI Trading Bot with Universal Platform Connector")
 
