@@ -1132,6 +1132,7 @@ class PlatformConnectionManager:
         self.automator = WebAutomator()
         self.credentials: Dict[str, PlatformCredentials] = {}
         self.active_connections: Dict[str, bool] = {}
+        self.interface_data: Dict[str, Dict[str, Any]] = {}  # Store interface analysis
         self.load_credentials()
     
     def save_credentials(self):
