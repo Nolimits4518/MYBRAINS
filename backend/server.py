@@ -583,13 +583,66 @@ async def test_telegram():
         if not TELEGRAM_BOT_TOKEN:
             raise HTTPException(status_code=400, detail="Telegram token not configured")
         
-        telegram = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
-        success = await telegram.send_message("🧪 **Telegram Test Message**\n\nBot connection is working correctly!", parse_mode='Markdown')
+        # First, test bot info
+        bot = Bot(token=TELEGRAM_BOT_TOKEN)
         
-        if success:
-            return {"status": "success", "message": "Telegram test message sent successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send Telegram message")
+        try:
+            # Get bot information
+            bot_info = await bot.get_me()
+            logging.info(f"Bot info: {bot_info.username} - {bot_info.first_name}")
+            
+            # Try to send message
+            telegram = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+            success = await telegram.send_message("🧪 **Telegram Test Message**\n\nBot connection is working correctly!", parse_mode='Markdown')
+            
+            if success:
+                return {
+                    "status": "success", 
+                    "message": "Telegram test message sent successfully",
+                    "bot_info": {
+                        "username": bot_info.username,
+                        "name": bot_info.first_name,
+                        "chat_id": TELEGRAM_CHAT_ID
+                    }
+                }
+            else:
+                return {
+                    "status": "error", 
+                    "message": f"Failed to send message to chat {TELEGRAM_CHAT_ID}",
+                    "bot_info": {
+                        "username": bot_info.username,
+                        "name": bot_info.first_name,
+                        "working": True
+                    },
+                    "troubleshooting": [
+                        f"Bot @{bot_info.username} is working correctly",
+                        f"Issue: Cannot send message to chat ID {TELEGRAM_CHAT_ID}",
+                        "Solution: Make sure you've started a chat with the bot first",
+                        "Steps: 1) Find bot @{} on Telegram, 2) Send /start command, 3) Try test again".format(bot_info.username)
+                    ]
+                }
+        except Exception as chat_error:
+            # Bot token works but chat issue
+            try:
+                bot_info = await bot.get_me()
+                return {
+                    "status": "error", 
+                    "message": f"Chat error: {str(chat_error)}",
+                    "bot_info": {
+                        "username": bot_info.username,
+                        "name": bot_info.first_name,
+                        "working": True
+                    },
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "error_details": str(chat_error)
+                }
+            except Exception as bot_error:
+                return {
+                    "status": "error",
+                    "message": f"Bot token error: {str(bot_error)}",
+                    "token_provided": bool(TELEGRAM_BOT_TOKEN),
+                    "chat_id": TELEGRAM_CHAT_ID
+                }
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
