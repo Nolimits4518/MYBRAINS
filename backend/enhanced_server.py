@@ -677,9 +677,9 @@ async def delete_platform(platform_id: str):
 
 @app.get("/api/platform/list")
 async def list_connected_platforms():
-    """Get list of all connected platforms"""
+    """Get list of all platforms"""
     try:
-        platforms = platform_manager.get_connected_platforms()
+        platforms = await platform_manager.get_platforms()
         return {
             "status": "success",
             "data": platforms,
