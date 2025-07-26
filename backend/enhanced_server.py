@@ -421,6 +421,80 @@ async def list_connected_platforms():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/platform/close-position")
+async def close_position_on_platform(request: dict):
+    """Close position on connected platform"""
+    try:
+        platform_id = request.get("platform_id")
+        position_symbol = request.get("position_symbol")
+        
+        if not platform_id or not position_symbol:
+            raise HTTPException(status_code=400, detail="platform_id and position_symbol are required")
+        
+        result = await platform_manager.close_position_on_platform(platform_id, position_symbol)
+        
+        return {
+            "status": "success" if result.success else "error",
+            "message": result.message,
+            "data": {
+                "order_id": result.order_id,
+                "timestamp": result.timestamp
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/platform/interface/{platform_id}")
+async def get_platform_interface_info(platform_id: str):
+    """Get trading interface analysis for a platform"""
+    try:
+        interface_info = await platform_manager.get_platform_interface_info(platform_id)
+        
+        if "error" in interface_info:
+            raise HTTPException(status_code=400, detail=interface_info["error"])
+        
+        return {
+            "status": "success",
+            "data": interface_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/platform/analyze-interface")
+async def analyze_platform_interface(request: dict):
+    """Re-analyze trading interface for a connected platform"""
+    try:
+        platform_id = request.get("platform_id")
+        
+        if not platform_id:
+            raise HTTPException(status_code=400, detail="platform_id is required")
+        
+        if platform_id not in platform_manager.active_connections or not platform_manager.active_connections[platform_id]:
+            raise HTTPException(status_code=400, detail="Platform not connected")
+        
+        # Re-analyze interface
+        interface_analysis = await platform_manager.automator.analyze_trading_interface()
+        platform_manager.interface_data[platform_id] = interface_analysis
+        
+        return {
+            "status": "success",
+            "message": "Interface analysis updated",
+            "data": {
+                "platform_id": platform_id,
+                "interface_analysis": interface_analysis,
+                "buy_elements_count": len(interface_analysis.get('buy_elements', [])),
+                "sell_elements_count": len(interface_analysis.get('sell_elements', [])),
+                "trading_inputs_detected": {
+                    "symbol_input": interface_analysis.get('symbol_input') is not None,
+                    "quantity_input": interface_analysis.get('quantity_input') is not None,
+                    "price_input": interface_analysis.get('price_input') is not None,
+                    "positions_table": interface_analysis.get('positions_table') is not None
+                }
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/platform/trade")
 async def execute_external_trade(request: ExternalTradeRequest):
     """Execute trade on external platform"""
