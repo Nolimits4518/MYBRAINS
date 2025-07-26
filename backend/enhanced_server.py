@@ -910,12 +910,58 @@ async def update_trading_config(config: dict):
 
 @app.get("/api/bot/status")
 async def get_bot_status():
-    """Get current bot status with platform info"""
-    bot_state["connected_platforms"] = platform_manager.get_connected_platforms()
-    return {
-        "status": "success",
-        "data": bot_state
-    }
+    """Get comprehensive bot status including RSI and trading info"""
+    try:
+        # Get platform connection status
+        platforms = await platform_manager.get_platforms()
+        connected_count = sum(1 for p in platforms if p.get('is_connected', False))
+        
+        # Get current market data
+        current_crypto_data = {}
+        for symbol in ['bitcoin', 'ethereum', 'binancecoin']:
+            try:
+                price_data = cg.get_coin_market_chart_by_id(
+                    id=symbol,
+                    vs_currency='usd',
+                    days=1
+                )
+                
+                if price_data and 'prices' in price_data:
+                    prices = [p[1] for p in price_data['prices']]
+                    current_price = prices[-1] if prices else 0
+                    rsi = calculate_rsi(prices)
+                    
+                    current_crypto_data[symbol] = {
+                        'price': current_price,
+                        'rsi': rsi,
+                        'signal': generate_trading_signal(symbol.upper(), current_price, rsi)
+                    }
+            except:
+                pass
+        
+        return {
+            "status": "success",
+            "data": {
+                "bot_active": bot_active,
+                "auto_trading_enabled": auto_trading_enabled,
+                "connected_platforms": connected_count,
+                "total_platforms": len(platforms),
+                "current_positions": len(current_positions),
+                "crypto_data": current_crypto_data,
+                "signals": current_signals,
+                "trading_config": {
+                    "rsi_oversold": trading_config.rsi_oversold,
+                    "rsi_overbought": trading_config.rsi_overbought,
+                    "position_size": trading_config.position_size,
+                    "stop_loss_pct": trading_config.stop_loss_pct,
+                    "take_profit_pct": trading_config.take_profit_pct
+                },
+                "last_update": datetime.now().isoformat()
+            }
+        }
+    except Exception as e:
+        logging.error(f"❌ Error getting bot status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/bot/start")
 async def start_enhanced_bot(config: TradingConfig, background_tasks: BackgroundTasks):
