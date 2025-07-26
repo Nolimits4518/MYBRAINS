@@ -1435,21 +1435,29 @@ class PlatformConnectionManager:
             logging.error(f"❌ Failed to get interface info for {platform_id}: {e}")
             return {"error": str(e)}
     
-    def get_connected_platforms(self) -> List[Dict]:
-        """Get list of connected platforms"""
+    async def get_platforms(self) -> List[Dict[str, Any]]:
+        """Get list of all platforms with their status"""
         platforms = []
-        for platform_id, credentials in self.credentials.items():
-            platforms.append({
+        
+        for platform_id, creds in self.credentials.items():
+            platform_data = {
                 "platform_id": platform_id,
-                "platform_name": credentials.platform_name,
-                "login_url": credentials.login_url,
-                "username": credentials.username,
+                "platform_name": creds.platform_name,
+                "login_url": creds.login_url,
+                "username": creds.username,
                 "is_connected": self.active_connections.get(platform_id, False),
-                "last_used": credentials.last_used,
-                "created_at": credentials.created_at,
-                "two_fa_enabled": credentials.two_fa.enabled if credentials.two_fa else False
-            })
+                "is_active": creds.is_active,
+                "created_at": creds.created_at,
+                "last_used": creds.last_used,
+                "two_fa_enabled": creds.two_fa and creds.two_fa.enabled if creds.two_fa else False
+            }
+            platforms.append(platform_data)
+        
         return platforms
+
+    def get_connected_platforms(self) -> List[str]:
+        """Get list of connected platform IDs"""
+        return [pid for pid, connected in self.active_connections.items() if connected]
     
     async def disconnect_platform(self, platform_id: str):
         """Disconnect from platform"""
