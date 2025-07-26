@@ -735,6 +735,10 @@ const AddPlatformModal = ({ isOpen, onClose, onAdd }) => {
 const PlatformConnector = () => {
   const [platforms, setPlatforms] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showInterfaceModal, setShowInterfaceModal] = useState(false);
+  const [showClosePositionModal, setShowClosePositionModal] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState(null);
+  const [interfaceData, setInterfaceData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -793,6 +797,45 @@ const PlatformConnector = () => {
     alert(`Trading on ${platform.platform_name} - Feature coming soon!`);
   };
 
+  const handleViewInterface = async (platform) => {
+    try {
+      setSelectedPlatform(platform);
+      setShowInterfaceModal(true);
+      
+      const response = await axios.get(`${BACKEND_URL}/api/platform/interface/${platform.platform_id}`);
+      if (response.data.status === 'success') {
+        setInterfaceData(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch interface data:', error);
+      alert('Failed to load interface analysis');
+    }
+  };
+
+  const handleClosePosition = (platform) => {
+    setSelectedPlatform(platform);
+    setShowClosePositionModal(true);
+  };
+
+  const handleClosePositionSubmit = async (positionSymbol) => {
+    try {
+      const response = await axios.post(`${BACKEND_URL}/api/platform/close-position`, {
+        platform_id: selectedPlatform.platform_id,
+        position_symbol: positionSymbol
+      });
+      
+      if (response.data.status === 'success') {
+        alert(`Position ${positionSymbol} closed successfully!`);
+        setShowClosePositionModal(false);
+      } else {
+        alert('Failed to close position: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('Close position failed:', error);
+      alert('Failed to close position');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -813,7 +856,7 @@ const PlatformConnector = () => {
         <h3 className="font-semibold text-blue-400 mb-2">🔗 Universal Trading Integration</h3>
         <p className="text-sm text-gray-300">
           Connect to ANY trading platform by providing login credentials. Our system will automatically 
-          detect form fields, handle 2FA authentication, and execute trades on your behalf.
+          detect form fields, handle 2FA authentication, analyze trading interface, and execute trades on your behalf.
         </p>
       </div>
 
@@ -847,6 +890,8 @@ const PlatformConnector = () => {
               onDisconnect={handleDisconnect}
               onDelete={handleDelete}
               onTrade={handleTrade}
+              onViewInterface={handleViewInterface}
+              onClosePosition={handleClosePosition}
             />
           ))}
         </div>
@@ -856,6 +901,20 @@ const PlatformConnector = () => {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onAdd={fetchPlatforms}
+      />
+
+      <InterfaceAnalysisModal
+        isOpen={showInterfaceModal}
+        onClose={() => setShowInterfaceModal(false)}
+        platform={selectedPlatform}
+        interfaceData={interfaceData}
+      />
+
+      <ClosePositionModal
+        isOpen={showClosePositionModal}
+        onClose={() => setShowClosePositionModal(false)}
+        platform={selectedPlatform}
+        onSubmit={handleClosePositionSubmit}
       />
     </div>
   );
