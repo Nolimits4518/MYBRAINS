@@ -1103,6 +1103,8 @@ async def switch_timeframe(timeframe: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/telegram/test")
 async def test_telegram():
     """Test Telegram connection with enhanced diagnostics"""
     try:
