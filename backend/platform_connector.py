@@ -97,6 +97,8 @@ class PlatformCredentials:
     password: str
     api_key: str = ""
     api_secret: str = ""
+    server: str = ""
+    additional_fields: dict = None
     two_fa: TwoFAConfig = None
     created_at: str = ""
     last_used: str = ""
