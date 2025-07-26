@@ -517,37 +517,136 @@ const AddPlatformModal = ({ isOpen, onClose, onAdd }) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-mono text-cyan-400 mb-3">Username/Email</label>
-                <input
-                  type="text"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-                  placeholder="Your username or email"
-                  className="w-full px-4 py-3 bg-gray-800/50 border border-cyan-400/30 rounded-lg text-white font-mono focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30"
-                />
-              </div>
+  const renderFormField = (field) => {
+    const fieldValue = credentials[field.name] || credentials.additionalFields[field.name] || '';
+    
+    const updateFieldValue = (value) => {
+      if (['username', 'password', 'server'].includes(field.name)) {
+        setCredentials({...credentials, [field.name]: value});
+      } else {
+        setCredentials({
+          ...credentials,
+          additionalFields: {
+            ...credentials.additionalFields,
+            [field.name]: value
+          }
+        });
+      }
+    };
 
-              <div>
-                <label className="block text-sm font-mono text-cyan-400 mb-3">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={credentials.password}
-                    onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-                    placeholder="Your password"
-                    className="w-full px-4 py-3 pr-12 bg-gray-800/50 border border-cyan-400/30 rounded-lg text-white font-mono focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-cyan-400"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
+    const fieldClasses = "w-full px-4 py-3 bg-gray-800/50 border border-cyan-400/30 rounded-lg text-white font-mono focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30";
+    
+    switch (field.type) {
+      case 'password':
+        return (
+          <div key={field.name} className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={fieldValue}
+              onChange={(e) => updateFieldValue(e.target.value)}
+              placeholder={field.placeholder}
+              className={`${fieldClasses} pr-12`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-cyan-400"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+        );
+      
+      case 'select':
+        return (
+          <select
+            key={field.name}
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            className={fieldClasses}
+          >
+            <option value="">{field.placeholder}</option>
+            {field.options?.map((option, index) => (
+              <option key={index} value={option}>{option}</option>
+            )) || [
+              <option key="demo" value="demo">Demo Server</option>,
+              <option key="live" value="live">Live Server</option>,
+              <option key="staging" value="staging">Staging Server</option>
+            ]}
+          </select>
+        );
+      
+      case 'email':
+        return (
+          <input
+            key={field.name}
+            type="email"
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={fieldClasses}
+          />
+        );
+      
+      case 'tel':
+        return (
+          <input
+            key={field.name}
+            type="tel"
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={fieldClasses}
+          />
+        );
+      
+      case 'number':
+        return (
+          <input
+            key={field.name}
+            type="number"
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={fieldClasses}
+          />
+        );
+      
+      case 'textarea':
+        return (
+          <textarea
+            key={field.name}
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={`${fieldClasses} h-24 resize-none`}
+          />
+        );
+      
+      default: // text
+        return (
+          <input
+            key={field.name}
+            type="text"
+            value={fieldValue}
+            onChange={(e) => updateFieldValue(e.target.value)}
+            placeholder={field.placeholder}
+            className={fieldClasses}
+          />
+        );
+    }
+  };
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {detectedForm.login_fields.map((field) => (
+                <div key={field.name}>
+                  <label className="block text-sm font-mono text-cyan-400 mb-3">
+                    {field.label}
+                    {field.required && <span className="text-red-400 ml-1">*</span>}
+                  </label>
+                  {renderFormField(field)}
                 </div>
-              </div>
+              ))}
             </div>
 
             <div className="border-t border-gray-700 pt-6">
