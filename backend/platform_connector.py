@@ -193,53 +193,146 @@ class WebAutomator:
             # Detect form fields
             login_fields = []
             
-            # Common selectors for login fields
+            # Enhanced selectors for comprehensive form detection
             field_selectors = {
                 'username': [
                     'input[name*="user"]', 'input[name*="email"]', 'input[name*="login"]',
                     'input[id*="user"]', 'input[id*="email"]', 'input[id*="login"]',
-                    'input[type="email"]', 'input[placeholder*="user"]', 'input[placeholder*="email"]'
+                    'input[type="email"]', 'input[placeholder*="user"]', 'input[placeholder*="email"]',
+                    'input[placeholder*="Username"]', 'input[placeholder*="Email"]'
                 ],
                 'password': [
-                    'input[type="password"]', 'input[name*="pass"]', 'input[id*="pass"]'
+                    'input[type="password"]', 'input[name*="pass"]', 'input[id*="pass"]',
+                    'input[placeholder*="password"]', 'input[placeholder*="Password"]'
                 ],
-                'additional': [
+                'server': [
+                    'select[name*="server"]', 'select[id*="server"]', 'select[name*="environment"]',
+                    'select[id*="environment"]', 'input[name*="server"]', 'input[id*="server"]',
+                    'select[placeholder*="server"]', 'select[placeholder*="Server"]',
+                    'select[name*="broker"]', 'select[id*="broker"]'
+                ],
+                'additional_text': [
                     'input[name*="phone"]', 'input[name*="code"]', 'input[name*="pin"]',
-                    'input[type="tel"]', 'input[type="number"]'
+                    'input[type="tel"]', 'input[type="number"]', 'input[name*="account"]',
+                    'input[id*="account"]', 'input[name*="client"]', 'input[id*="client"]',
+                    'input[name*="trading"]', 'input[id*="trading"]'
+                ],
+                'additional_select': [
+                    'select[name*="country"]', 'select[id*="country"]', 'select[name*="region"]',
+                    'select[id*="region"]', 'select[name*="platform"]', 'select[id*="platform"]'
                 ]
             }
             
-            # Detect username fields
-            for selector in field_selectors['username']:
-                elements = await self.page.query_selector_all(selector)
-                for element in elements:
-                    if await element.is_visible():
-                        name = await element.get_attribute('name') or await element.get_attribute('id') or 'username'
-                        placeholder = await element.get_attribute('placeholder') or ''
-                        login_fields.append(LoginField(
-                            name=name,
-                            selector=selector,
-                            type='text',
-                            label='Username/Email',
-                            placeholder=placeholder
-                        ))
-                        break
+            # Detect all form elements in order
+            all_inputs = await self.page.query_selector_all('input, select, textarea')
             
-            # Detect password fields
-            for selector in field_selectors['password']:
-                elements = await self.page.query_selector_all(selector)
-                for element in elements:
-                    if await element.is_visible():
-                        name = await element.get_attribute('name') or await element.get_attribute('id') or 'password'
-                        placeholder = await element.get_attribute('placeholder') or ''
-                        login_fields.append(LoginField(
-                            name=name,
-                            selector=selector,
-                            type='password',
-                            label='Password',
-                            placeholder=placeholder
-                        ))
-                        break
+            for element in all_inputs:
+                if not await element.is_visible():
+                    continue
+                    
+                tag_name = await element.evaluate('el => el.tagName.toLowerCase()')
+                input_type = await element.get_attribute('type') or 'text'
+                name = await element.get_attribute('name') or ''
+                element_id = await element.get_attribute('id') or ''
+                placeholder = await element.get_attribute('placeholder') or ''
+                
+                # Skip hidden and submit inputs
+                if input_type in ['hidden', 'submit', 'button', 'reset']:
+                    continue
+                
+                # Determine field type and label
+                field_type = 'text'
+                label = 'Unknown Field'
+                
+                # Check for password fields
+                if input_type == 'password':
+                    field_type = 'password'
+                    label = 'Password'
+                
+                # Check for email fields
+                elif input_type == 'email' or any(keyword in (name + element_id + placeholder).lower() 
+                                                for keyword in ['email', 'mail']):
+                    field_type = 'email'
+                    label = 'Email'
+                
+                # Check for username fields
+                elif any(keyword in (name + element_id + placeholder).lower() 
+                        for keyword in ['user', 'login', 'account']):
+                    field_type = 'text'
+                    label = 'Username'
+                
+                # Check for server/broker selection fields
+                elif (tag_name == 'select' and 
+                      any(keyword in (name + element_id + placeholder).lower() 
+                          for keyword in ['server', 'broker', 'environment', 'platform'])):
+                    field_type = 'select'
+                    label = 'Server/Broker'
+                    
+                    # Try to get options for select fields
+                    try:
+                        options = await element.query_selector_all('option')
+                        option_values = []
+                        for option in options:
+                            option_text = await option.text_content()
+                            option_value = await option.get_attribute('value')
+                            if option_text and option_text.strip():
+                                option_values.append(option_text.strip())
+                        if option_values:
+                            placeholder = f"Options: {', '.join(option_values[:3])}" + ('...' if len(option_values) > 3 else '')
+                    except:
+                        pass
+                
+                # Check for phone fields
+                elif input_type == 'tel' or any(keyword in (name + element_id + placeholder).lower() 
+                                               for keyword in ['phone', 'mobile', 'tel']):
+                    field_type = 'tel'
+                    label = 'Phone'
+                
+                # Check for country/region fields
+                elif (tag_name == 'select' and 
+                      any(keyword in (name + element_id + placeholder).lower() 
+                          for keyword in ['country', 'region', 'location'])):
+                    field_type = 'select'
+                    label = 'Country/Region'
+                
+                # Check for numeric fields
+                elif input_type == 'number' or any(keyword in (name + element_id + placeholder).lower() 
+                                                  for keyword in ['code', 'pin', 'number']):
+                    field_type = 'number'
+                    label = 'Code/Number'
+                
+                # Check for text areas
+                elif tag_name == 'textarea':
+                    field_type = 'textarea'
+                    label = 'Text Area'
+                
+                # Default text field
+                elif tag_name == 'input' and input_type == 'text':
+                    field_type = 'text'
+                    if placeholder:
+                        label = placeholder.title()
+                    else:
+                        label = name.title() if name else 'Text Field'
+                
+                # Only add if we found a relevant field
+                if field_type and label != 'Unknown Field':
+                    field_name = name or element_id or field_type
+                    
+                    # Create appropriate selector
+                    if name:
+                        selector = f'{tag_name}[name="{name}"]'
+                    elif element_id:
+                        selector = f'{tag_name}[id="{element_id}"]'
+                    else:
+                        selector = f'{tag_name}[type="{input_type}"]' if input_type else tag_name
+                    
+                    login_fields.append(LoginField(
+                        name=field_name,
+                        selector=selector,
+                        type=field_type,
+                        label=label,
+                        placeholder=placeholder or f'Enter {label.lower()}'
+                    ))
             
             # Detect submit button
             submit_selectors = [
