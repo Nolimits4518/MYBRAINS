@@ -622,16 +622,23 @@ class EnhancedRSITradingBot:
         return configs.get(timeframe, configs["1h"])  # Default to 1h config
     
     async def execute_trade_signal(self, signal_type: str, price: float, reason: str):
-        """Execute enhanced trade signal with metrics tracking"""
+        """Execute enhanced trade signal with timeframe-specific parameters"""
         try:
             trade_id = f"{signal_type}_{int(time.time())}"
+            
+            # Get timeframe-specific configuration
+            tf_config = self.get_timeframe_trading_config(self.config.timeframe)
+            
+            # Calculate timeframe-adjusted risk parameters
+            adjusted_stop_loss = self.config.stop_loss_pct * tf_config["stop_loss_multiplier"]
+            adjusted_take_profit = self.config.take_profit_pct * tf_config["take_profit_multiplier"]
             
             if signal_type == "buy":
                 trade_state.entry_price = price
                 trade_state.is_buy_active = True
                 trade_state.is_sell_active = False
-                stop_loss = price * (1 - self.config.stop_loss_pct / 100)
-                take_profit = price * (1 + self.config.take_profit_pct / 100)
+                stop_loss = price * (1 - adjusted_stop_loss / 100)
+                take_profit = price * (1 + adjusted_take_profit / 100)
                 
                 position = Position(
                     id=trade_id,
@@ -654,8 +661,8 @@ class EnhancedRSITradingBot:
                 trade_state.entry_price = price
                 trade_state.is_buy_active = False
                 trade_state.is_sell_active = True
-                stop_loss = price * (1 + self.config.stop_loss_pct / 100)
-                take_profit = price * (1 - self.config.take_profit_pct / 100)
+                stop_loss = price * (1 + adjusted_stop_loss / 100)
+                take_profit = price * (1 - adjusted_take_profit / 100)
                 
                 position = Position(
                     id=trade_id,
@@ -674,7 +681,7 @@ class EnhancedRSITradingBot:
                 
                 bot_state["position"] = position.dict()
             
-            # Send enhanced Telegram alert
+            # Send enhanced Telegram alert with timeframe info
             if self.telegram:
                 await self.telegram.send_trade_alert(
                     action=signal_type,
@@ -684,13 +691,13 @@ class EnhancedRSITradingBot:
                     position_size=self.config.position_size,
                     stop_loss=stop_loss,
                     take_profit=take_profit,
-                    reason=reason
+                    reason=f"{reason} ({TIMEFRAMES[self.config.timeframe]['display']})"
                 )
             
             trade_state.total_trades_today += 1
             bot_state["total_trades"] = trade_state.total_trades_today
             
-            # Store trade in history
+            # Store enhanced trade record
             trade_record = {
                 "id": trade_id,
                 "timestamp": datetime.now().isoformat(),
@@ -699,11 +706,16 @@ class EnhancedRSITradingBot:
                 "timeframe": self.config.timeframe,
                 "price": price,
                 "quantity": self.config.position_size,
-                "reason": reason
+                "reason": reason,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
+                "adjusted_stop_loss_pct": adjusted_stop_loss,
+                "adjusted_take_profit_pct": adjusted_take_profit,
+                "timeframe_config": tf_config
             }
             trade_state.trade_history.append(trade_record)
             
-            logging.info(f"✅ {signal_type.upper()} signal executed at ${price:,.4f} on {self.config.timeframe}")
+            logging.info(f"✅ {signal_type.upper()} signal executed at ${price:,.4f} on {self.config.timeframe} ({reason})")
             
         except Exception as e:
             logging.error(f"❌ Failed to execute {signal_type} signal: {e}")
