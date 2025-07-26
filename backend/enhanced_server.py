@@ -1,4 +1,4 @@
-# Enhanced server with Universal Platform Connector
+# Enhanced server with Universal Platform Connector and RSI Trading Integration
 import asyncio
 import aiohttp
 import json
@@ -47,6 +47,28 @@ TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 
 # Initialize APIs
 cg = CoinGeckoAPI()
+
+# Global variables for RSI Trading System
+bot_active = False
+current_positions = {}
+trade_history = []
+websocket_connections = set()
+current_signals = {}
+auto_trading_enabled = False
+
+# RSI Trading Configuration
+class TradingConfig:
+    def __init__(self):
+        self.rsi_period = 14
+        self.rsi_oversold = 30
+        self.rsi_overbought = 70
+        self.position_size = 0.1
+        self.stop_loss_pct = 2.0
+        self.take_profit_pct = 4.0
+        self.max_positions = 5
+        self.auto_trade_enabled = True
+
+trading_config = TradingConfig()
 
 # Global bot state (keeping existing functionality)
 bot_state = {
