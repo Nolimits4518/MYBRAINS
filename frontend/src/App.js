@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import Select from 'react-select';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LineChart, 
   Line, 
@@ -9,13 +10,11 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  AreaChart,
-  Area,
   ComposedChart,
   Bar,
   ReferenceLine,
-  Scatter,
-  ScatterChart
+  Area,
+  AreaChart
 } from 'recharts';
 import { 
   Play, 
@@ -35,48 +34,200 @@ import {
   Filter,
   RefreshCw,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Zap,
+  Shield,
+  Eye,
+  Cpu,
+  Radio,
+  Globe,
+  Flame,
+  Star,
+  Hexagon
 } from 'lucide-react';
 import './App.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Custom select styles
-const selectStyles = {
-  control: (styles) => ({
+// 🌟 Particle Component for Background Effects
+const ParticleField = () => {
+  const canvasRef = useRef(null);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    const particles = [];
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        size: Math.random() * 2,
+        opacity: Math.random() * 0.5 + 0.2
+      });
+    }
+    
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      particles.forEach(particle => {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        
+        if (particle.x < 0) particle.x = canvas.width;
+        if (particle.x > canvas.width) particle.x = 0;
+        if (particle.y < 0) particle.y = canvas.height;
+        if (particle.y > canvas.height) particle.y = 0;
+        
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 245, 255, ${particle.opacity})`;
+        ctx.fill();
+      });
+      
+      requestAnimationFrame(animate);
+    };
+    
+    animate();
+    
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  return <canvas ref={canvasRef} className="fixed top-0 left-0 pointer-events-none z-0" />;
+};
+
+// 🎯 Holographic Status Indicator
+const StatusIndicator = ({ status, label, icon: Icon }) => {
+  const statusConfig = {
+    online: { color: 'text-green-400', glow: 'shadow-green-400/50', pulse: 'animate-pulse' },
+    offline: { color: 'text-red-400', glow: 'shadow-red-400/50', pulse: '' },
+    warning: { color: 'text-yellow-400', glow: 'shadow-yellow-400/50', pulse: 'animate-pulse' }
+  };
+  
+  const config = statusConfig[status] || statusConfig.offline;
+  
+  return (
+    <div className="flex items-center space-x-2">
+      <div className={`p-1 rounded-full ${config.color} ${config.glow} ${config.pulse}`}>
+        <Icon className="w-4 h-4" />
+      </div>
+      <span className={`text-sm font-mono ${config.color} text-glow`}>{label}</span>
+    </div>
+  );
+};
+
+// 🌊 Animated Waveform Component
+const Waveform = ({ active = false }) => {
+  const bars = Array.from({ length: 5 }, (_, i) => i);
+  
+  return (
+    <div className="waveform">
+      {bars.map((bar) => (
+        <motion.div
+          key={bar}
+          className="wave-bar"
+          animate={active ? {
+            height: [10, 40, 10],
+            opacity: [0.5, 1, 0.5]
+          } : {
+            height: 10,
+            opacity: 0.3
+          }}
+          transition={{
+            duration: 1,
+            repeat: Infinity,
+            delay: bar * 0.1
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// 💎 3D Metric Card Component
+const MetricCard = ({ title, value, change, icon: Icon, type = 'default' }) => {
+  const typeConfig = {
+    default: 'border-cyan-400/30 bg-gradient-to-br from-cyan-500/10 to-pink-500/10',
+    success: 'border-green-400/30 bg-gradient-to-br from-green-500/10 to-cyan-500/10',
+    danger: 'border-red-400/30 bg-gradient-to-br from-red-500/10 to-pink-500/10',
+    warning: 'border-yellow-400/30 bg-gradient-to-br from-yellow-500/10 to-orange-500/10'
+  };
+  
+  return (
+    <motion.div
+      className={`holo-card p-6 ${typeConfig[type]}`}
+      whileHover={{ scale: 1.02, y: -2 }}
+      transition={{ type: "spring", stiffness: 300 }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="metric-label">{title}</div>
+        <Icon className="w-6 h-6 text-cyan-400" />
+      </div>
+      <div className="metric-value">{value}</div>
+      {change && (
+        <div className={`text-sm font-mono mt-2 flex items-center ${
+          change.startsWith('+') ? 'text-green-400' : 
+          change.startsWith('-') ? 'text-red-400' : 'text-yellow-400'
+        }`}>
+          {change.startsWith('+') ? <TrendingUp className="w-3 h-3 mr-1" /> :
+           change.startsWith('-') ? <TrendingDown className="w-3 h-3 mr-1" /> : null}
+          {change}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+// 🎨 Custom Select Styles for Cyberpunk Theme
+const cyberSelectStyles = {
+  control: (styles, { isFocused }) => ({
     ...styles,
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
-    color: '#ffffff',
+    backgroundColor: 'rgba(20, 25, 40, 0.8)',
+    borderColor: isFocused ? '#00F5FF' : 'rgba(0, 245, 255, 0.3)',
+    color: '#E0E6ED',
     minHeight: '40px',
+    boxShadow: isFocused ? '0 0 20px rgba(0, 245, 255, 0.3)' : 'none',
+    backdropFilter: 'blur(10px)',
     '&:hover': {
-      borderColor: '#3B82F6'
+      borderColor: '#00F5FF'
     }
   }),
   option: (styles, { isFocused, isSelected }) => ({
     ...styles,
-    backgroundColor: isSelected ? '#3B82F6' : isFocused ? '#4B5563' : '#374151',
-    color: '#ffffff',
+    backgroundColor: isSelected ? '#00F5FF' : isFocused ? 'rgba(0, 245, 255, 0.1)' : 'rgba(20, 25, 40, 0.9)',
+    color: isSelected ? '#0A0A0F' : '#E0E6ED',
     '&:active': {
-      backgroundColor: '#3B82F6'
+      backgroundColor: 'rgba(0, 245, 255, 0.2)'
     }
   }),
   menu: (styles) => ({
     ...styles,
-    backgroundColor: '#374151',
-    border: '1px solid #4B5563'
+    backgroundColor: 'rgba(20, 25, 40, 0.95)',
+    border: '1px solid rgba(0, 245, 255, 0.3)',
+    backdropFilter: 'blur(20px)',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
   }),
   singleValue: (styles) => ({
     ...styles,
-    color: '#ffffff'
+    color: '#E0E6ED'
   }),
   placeholder: (styles) => ({
     ...styles,
-    color: '#9CA3AF'
+    color: 'rgba(224, 230, 237, 0.5)'
   }),
   input: (styles) => ({
     ...styles,
-    color: '#ffffff'
+    color: '#E0E6ED'
   })
 };
 
@@ -110,17 +261,30 @@ function App() {
   const [timeframes, setTimeframes] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [metrics, setMetrics] = useState(null);
-  const [selectedTab, setSelectedTab] = useState('dashboard');
+  const [selectedTab, setSelectedTab] = useState('neural-core');
   const [loading, setLoading] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
-  // Fetch bot status
+  // Add notification system
+  const addNotification = useCallback((type, message) => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  }, []);
+
+  // Fetch bot status with enhanced error handling
   useEffect(() => {
     const fetchStatus = async () => {
       try {
         const response = await axios.get(`${BACKEND_URL}/api/bot/status`);
         if (response.data.status === 'success') {
-          setBotStatus(response.data.data);
+          setBotStatus(prev => ({
+            ...prev,
+            ...response.data.data
+          }));
         }
       } catch (error) {
         console.error('Error fetching bot status:', error);
@@ -132,7 +296,7 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch crypto list and timeframes
+  // Fetch static data (crypto list and timeframes)
   useEffect(() => {
     const fetchStaticData = async () => {
       try {
@@ -178,7 +342,6 @@ function App() {
             time: new Date(candle.timestamp).toLocaleTimeString(),
             date: new Date(candle.timestamp).toLocaleDateString(),
             fullTime: new Date(candle.timestamp),
-            // Add trade markers
             buySignal: candle.trades?.some(t => t.action === 'buy') ? candle.close : null,
             sellSignal: candle.trades?.some(t => t.action === 'sell') ? candle.close : null
           }));
@@ -194,36 +357,17 @@ function App() {
     }
   }, [config.symbol, config.timeframe]);
 
-  // Fetch metrics
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const response = await axios.get(
-          `${BACKEND_URL}/api/analytics/metrics/${config.symbol}?timeframe=${config.timeframe}`
-        );
-        if (response.data.status === 'success') {
-          setMetrics(response.data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching metrics:', error);
-      }
-    };
-
-    if (config.symbol && config.timeframe) {
-      fetchMetrics();
-    }
-  }, [config.symbol, config.timeframe, botStatus.total_trades]);
-
+  // Enhanced bot control functions
   const startBot = async () => {
     try {
       setLoading(true);
       const response = await axios.post(`${BACKEND_URL}/api/bot/start`, config);
       if (response.data.status === 'success') {
-        console.log('Enhanced bot started successfully');
+        addNotification('success', '🚀 Neural RSI System Activated');
       }
     } catch (error) {
       console.error('Error starting bot:', error);
-      alert('Error starting bot: ' + (error.response?.data?.detail || error.message));
+      addNotification('error', '❌ System Activation Failed');
     } finally {
       setLoading(false);
     }
@@ -234,11 +378,11 @@ function App() {
       setLoading(true);
       const response = await axios.post(`${BACKEND_URL}/api/bot/stop`);
       if (response.data.status === 'success') {
-        console.log('Bot stopped successfully');
+        addNotification('warning', '⏹️ Neural RSI System Deactivated');
       }
     } catch (error) {
       console.error('Error stopping bot:', error);
-      alert('Error stopping bot: ' + (error.response?.data?.detail || error.message));
+      addNotification('error', '❌ System Deactivation Failed');
     } finally {
       setLoading(false);
     }
@@ -249,32 +393,34 @@ function App() {
       setLoading(true);
       const response = await axios.post(`${BACKEND_URL}/api/telegram/test`);
       if (response.data.status === 'success') {
-        alert('Enhanced Telegram test message sent successfully!');
+        addNotification('success', '📡 Quantum Communication Link Established');
       }
     } catch (error) {
       console.error('Error testing Telegram:', error);
-      alert('Error testing Telegram: ' + (error.response?.data?.detail || error.message));
+      addNotification('error', '❌ Communication Link Failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const updateConfig = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.post(`${BACKEND_URL}/api/bot/config`, config);
-      if (response.data.status === 'success') {
-        alert('Configuration updated successfully!');
-        setShowConfig(false);
-      }
-    } catch (error) {
-      console.error('Error updating config:', error);
-      alert('Error updating config: ' + (error.response?.data?.detail || error.message));
-    } finally {
-      setLoading(false);
+  // Quick symbol/timeframe switchers
+  const quickSwitchSymbol = async (newSymbol) => {
+    setConfig({...config, symbol: newSymbol});
+    if (botStatus.running) {
+      await stopBot();
+      setTimeout(() => startBot(), 1000);
     }
   };
 
+  const quickSwitchTimeframe = async (newTimeframe) => {
+    setConfig({...config, timeframe: newTimeframe});
+    if (botStatus.running) {
+      await stopBot();
+      setTimeout(() => startBot(), 1000);
+    }
+  };
+
+  // Utility functions
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -284,772 +430,540 @@ function App() {
     }).format(value);
   };
 
-  const formatPercent = (value) => {
-    return `${value.toFixed(2)}%`;
-  };
-
+  const formatPercent = (value) => `${value.toFixed(2)}%`;
   const winRate = metrics?.win_rate || 0;
 
-  const renderPriceChart = () => (
-    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-      <h2 className="text-xl font-semibold mb-4 flex items-center">
-        <BarChart3 className="w-5 h-5 mr-2" />
-        Price Chart & Signals - {config.symbol} ({config.timeframe})
-      </h2>
+  // Enhanced Chart Component
+  const renderNeuralChart = () => (
+    <motion.div 
+      className="holo-card p-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="section-title flex items-center">
+          <Hexagon className="w-5 h-5 mr-2" />
+          Quantum Price Matrix
+        </h3>
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-cyan-400 font-mono">{config.symbol}</span>
+          <span className="text-xs text-pink-400 font-mono">{config.timeframe}</span>
+          <Waveform active={botStatus.running} />
+        </div>
+      </div>
+      
       <ResponsiveContainer width="100%" height={400}>
         <ComposedChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <defs>
+            <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#00F5FF" stopOpacity={0.8}/>
+              <stop offset="95%" stopColor="#00F5FF" stopOpacity={0.1}/>
+            </linearGradient>
+          </defs>
+          
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 245, 255, 0.1)" />
           <XAxis 
             dataKey="time" 
-            stroke="#9CA3AF" 
-            tick={{ fontSize: 12 }}
-            interval="preserveStartEnd"
+            stroke="rgba(224, 230, 237, 0.5)" 
+            fontSize={10}
+            fontFamily="JetBrains Mono"
           />
-          <YAxis stroke="#9CA3AF" domain={['dataMin - 10', 'dataMax + 10']} />
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: '#1F2937', 
-              border: '1px solid #374151',
-              borderRadius: '8px',
-              color: '#ffffff'
-            }} 
-            labelFormatter={(value) => `Time: ${value}`}
-            formatter={(value, name) => [
-              typeof value === 'number' ? formatCurrency(value) : value,
-              name
-            ]}
+          <YAxis 
+            stroke="rgba(224, 230, 237, 0.5)" 
+            fontSize={10}
+            fontFamily="JetBrains Mono"
           />
           
-          {/* Price line */}
-          <Line 
+          <Tooltip 
+            contentStyle={{ 
+              backgroundColor: 'rgba(20, 25, 40, 0.95)', 
+              border: '1px solid rgba(0, 245, 255, 0.3)',
+              borderRadius: '8px',
+              color: '#E0E6ED',
+              backdropFilter: 'blur(10px)'
+            }} 
+          />
+          
+          <Area 
             type="monotone" 
             dataKey="close" 
-            stroke="#3B82F6" 
-            strokeWidth={2} 
-            dot={false} 
-            name="Price"
+            stroke="#00F5FF" 
+            strokeWidth={2}
+            fill="url(#priceGradient)"
+            fillOpacity={0.6}
           />
           
           {/* Buy signals */}
           <Line 
             type="monotone" 
             dataKey="buySignal" 
-            stroke="#10B981" 
+            stroke="#39FF14" 
             strokeWidth={0} 
-            dot={{ fill: '#10B981', strokeWidth: 2, r: 6 }}
+            dot={{ fill: '#39FF14', strokeWidth: 2, r: 8, filter: 'drop-shadow(0 0 6px #39FF14)' }}
             connectNulls={false}
-            name="Buy Signal"
           />
           
           {/* Sell signals */}
           <Line 
             type="monotone" 
             dataKey="sellSignal" 
-            stroke="#EF4444" 
+            stroke="#FF073A" 
             strokeWidth={0} 
-            dot={{ fill: '#EF4444', strokeWidth: 2, r: 6 }}
+            dot={{ fill: '#FF073A', strokeWidth: 2, r: 8, filter: 'drop-shadow(0 0 6px #FF073A)' }}
             connectNulls={false}
-            name="Sell Signal"
           />
           
-          {/* Current position reference line */}
+          {/* Position entry line */}
           {botStatus.position && (
             <ReferenceLine 
               y={botStatus.position.entry_price} 
-              stroke={botStatus.position.side === 'LONG' ? '#10B981' : '#EF4444'}
+              stroke={botStatus.position.side === 'LONG' ? '#39FF14' : '#FF073A'}
               strokeDasharray="5 5"
-              label={{ value: `Entry: ${formatCurrency(botStatus.position.entry_price)}`, position: 'right' }}
+              strokeWidth={2}
             />
           )}
         </ComposedChart>
       </ResponsiveContainer>
-    </div>
+    </motion.div>
   );
 
-  const renderRSIChart = () => (
-    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-      <h2 className="text-xl font-semibold mb-4">RSI Indicator</h2>
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="time" stroke="#9CA3AF" />
-          <YAxis domain={[0, 100]} stroke="#9CA3AF" />
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: '#1F2937', 
-              border: '1px solid #374151',
-              borderRadius: '8px'
-            }} 
-          />
-          
-          {/* RSI zones */}
-          <ReferenceLine y={70} stroke="#EF4444" strokeDasharray="3 3" />
-          <ReferenceLine y={30} stroke="#10B981" strokeDasharray="3 3" />
-          <ReferenceLine y={50} stroke="#6B7280" strokeDasharray="1 1" />
-          
-          <Line 
-            type="monotone" 
-            dataKey="rsi" 
-            stroke="#8B5CF6" 
-            strokeWidth={2} 
-            dot={false}
-            name="RSI"
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-
-  const renderPositionDetails = () => {
-    if (!botStatus.position) {
-      return (
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-xl font-semibold mb-4">Current Position</h2>
-          <div className="text-center py-8 text-gray-400">
-            <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No active position</p>
-          </div>
-        </div>
-      );
-    }
-
-    const position = botStatus.position;
-    const pnlColor = position.pnl >= 0 ? 'text-green-400' : 'text-red-400';
-    const sideColor = position.side === 'LONG' ? 'text-green-400' : 'text-red-400';
-
-    return (
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h2 className="text-xl font-semibold mb-4">Current Position</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Side:</span>
-              <span className={`font-semibold ${sideColor}`}>{position.side}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Entry Price:</span>
-              <span className="text-white">{formatCurrency(position.entry_price)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Current Price:</span>
-              <span className="text-white">{formatCurrency(position.current_price)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Quantity:</span>
-              <span className="text-white">{position.quantity}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Timeframe:</span>
-              <span className="text-blue-400">{position.timeframe}</span>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-400">P&L:</span>
-              <span className={`font-semibold ${pnlColor}`}>{formatCurrency(position.pnl)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">P&L %:</span>
-              <span className={`font-semibold ${pnlColor}`}>{formatPercent(position.pnl_pct)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Stop Loss:</span>
-              <span className="text-red-400">{formatCurrency(position.stop_loss)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Take Profit:</span>
-              <span className="text-green-400">{formatCurrency(position.take_profit)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Entry Time:</span>
-              <span className="text-white text-sm">{new Date(position.entry_time).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderMetrics = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Total Trades</p>
-            <p className="text-2xl font-bold text-blue-400">{metrics?.total_trades || 0}</p>
-          </div>
-          <BarChart3 className="w-8 h-8 text-blue-400" />
-        </div>
-      </div>
-
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Win Rate</p>
-            <p className="text-2xl font-bold text-green-400">{formatPercent(winRate)}</p>
-          </div>
-          <Target className="w-8 h-8 text-green-400" />
-        </div>
-      </div>
-
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Total P&L</p>
-            <p className={`text-2xl font-bold ${metrics?.total_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {formatCurrency(metrics?.total_pnl || 0)}
-            </p>
-          </div>
-          {(metrics?.total_pnl || 0) >= 0 ? (
-            <TrendingUp className="w-8 h-8 text-green-400" />
-          ) : (
-            <TrendingDown className="w-8 h-8 text-red-400" />
-          )}
-        </div>
-      </div>
-
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Avg Profit</p>
-            <p className="text-2xl font-bold text-yellow-400">
-              {formatCurrency(metrics?.average_profit || 0)}
-            </p>
-          </div>
-          <DollarSign className="w-8 h-8 text-yellow-400" />
-        </div>
-      </div>
-    </div>
+  // Tab Navigation Component
+  const TabButton = ({ id, label, icon: Icon, active, onClick }) => (
+    <motion.button
+      onClick={() => onClick(id)}
+      className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-mono text-sm transition-all ${
+        active 
+          ? 'bg-gradient-to-r from-cyan-500/20 to-pink-500/20 border border-cyan-400/50 text-cyan-400' 
+          : 'border border-transparent text-gray-400 hover:text-cyan-400 hover:border-cyan-400/30'
+      }`}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      <Icon className="w-4 h-4" />
+      <span>{label}</span>
+    </motion.button>
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 shadow-lg border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="min-h-screen text-white relative">
+      {/* Background Particle Field */}
+      <ParticleField />
+      
+      {/* Notification System */}
+      <AnimatePresence>
+        {notifications.map((notification) => (
+          <motion.div
+            key={notification.id}
+            initial={{ opacity: 0, x: 300 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 300 }}
+            className={`fixed top-4 right-4 z-50 p-4 rounded-lg border backdrop-blur-lg ${
+              notification.type === 'success' ? 'bg-green-500/10 border-green-400/30 text-green-400' :
+              notification.type === 'error' ? 'bg-red-500/10 border-red-400/30 text-red-400' :
+              'bg-yellow-500/10 border-yellow-400/30 text-yellow-400'
+            }`}
+          >
+            {notification.message}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      {/* Cyberpunk Header */}
+      <header className="cyber-header sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <BarChart3 className="w-8 h-8 text-blue-400" />
-              <h1 className="text-2xl font-bold text-white">Enhanced RSI Trading Bot</h1>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  {botStatus.market_data_connected ? (
-                    <div className="flex items-center text-green-400">
-                      <Wifi className="w-4 h-4 mr-1" />
-                      <span className="text-sm">Connected</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center text-red-400">
-                      <WifiOff className="w-4 h-4 mr-1" />
-                      <span className="text-sm">Disconnected</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center text-blue-400 text-sm">
-                  <Clock className="w-4 h-4 mr-1" />
-                  <span>{config.timeframe}</span>
-                </div>
-                <div className="text-gray-400 text-sm">
-                  {cryptoList.length} Cryptos
+            {/* Logo and Title */}
+            <motion.div 
+              className="flex items-center space-x-4"
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <div className="relative">
+                <Cpu className="w-10 h-10 text-cyan-400 animate-pulse" />
+                <div className="absolute inset-0 animate-ping">
+                  <Cpu className="w-10 h-10 text-cyan-400/20" />
                 </div>
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {/* Quick Timeframe Selector */}
+              <div>
+                <h1 className="cyber-title text-2xl">
+                  <span className="glitch" data-text="NEURAL RSI SYSTEM">NEURAL RSI SYSTEM</span>
+                </h1>
+                <div className="flex items-center space-x-4 mt-1">
+                  <StatusIndicator 
+                    status={botStatus.market_data_connected ? 'online' : 'offline'} 
+                    label="QUANTUM LINK" 
+                    icon={Radio} 
+                  />
+                  <StatusIndicator 
+                    status={botStatus.running ? 'online' : 'offline'} 
+                    label="NEURAL CORE" 
+                    icon={Zap} 
+                  />
+                  <span className="text-xs text-gray-400 font-mono">
+                    v2.0 | {cryptoList.length} ASSETS
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Quick Controls */}
+            <motion.div 
+              className="flex items-center space-x-4"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              {/* Quick Symbol Selector */}
               <div className="flex items-center space-x-2">
-                <Clock className="w-4 h-4 text-gray-400" />
+                <Globe className="w-4 h-4 text-cyan-400" />
                 <Select
-                  value={timeframes.find(tf => tf.value === config.timeframe)}
-                  onChange={(selectedOption) => {
-                    setConfig({...config, timeframe: selectedOption.value});
-                    if (botStatus.running) {
-                      // Auto-restart bot with new timeframe
-                      stopBot().then(() => {
-                        setTimeout(() => startBot(), 1000);
-                      });
-                    }
-                  }}
-                  options={timeframes}
-                  styles={{
-                    ...selectStyles,
-                    control: (styles) => ({
-                      ...styles,
-                      backgroundColor: '#1F2937',
-                      borderColor: '#374151',
-                      minWidth: '120px',
-                      minHeight: '36px'
-                    })
-                  }}
-                  placeholder="Timeframe"
-                  className="text-sm"
+                  value={cryptoList.find(c => c.value === config.symbol)}
+                  onChange={(option) => quickSwitchSymbol(option.value)}
+                  options={cryptoList.slice(0, 20)}
+                  styles={cyberSelectStyles}
+                  className="w-40"
+                  placeholder="Asset"
                 />
               </div>
 
-              {/* Quick Symbol Selector */}
+              {/* Quick Timeframe Selector */}
               <div className="flex items-center space-x-2">
-                <DollarSign className="w-4 h-4 text-gray-400" />
+                <Clock className="w-4 h-4 text-pink-400" />
                 <Select
-                  value={cryptoList.find(c => c.value === config.symbol)}
-                  onChange={(selectedOption) => {
-                    setConfig({...config, symbol: selectedOption.value});
-                    if (botStatus.running) {
-                      // Auto-restart bot with new symbol
-                      stopBot().then(() => {
-                        setTimeout(() => startBot(), 1000);
-                      });
-                    }
-                  }}
-                  options={cryptoList.slice(0, 20)} // Top 20 cryptos for quick access
-                  styles={{
-                    ...selectStyles,
-                    control: (styles) => ({
-                      ...styles,
-                      backgroundColor: '#1F2937',
-                      borderColor: '#374151',
-                      minWidth: '140px',
-                      minHeight: '36px'
-                    })
-                  }}
-                  placeholder="Symbol"
-                  className="text-sm"
+                  value={timeframes.find(tf => tf.value === config.timeframe)}
+                  onChange={(option) => quickSwitchTimeframe(option.value)}
+                  options={timeframes}
+                  styles={cyberSelectStyles}
+                  className="w-32"
+                  placeholder="Frame"
                 />
               </div>
-              
+
+              {/* Control Buttons */}
               <button
                 onClick={testTelegram}
                 disabled={loading}
-                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                className="neon-button disabled:opacity-50"
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
-                Test Telegram
+                COMM
               </button>
-              
+
               <button
                 onClick={() => setShowConfig(!showConfig)}
-                className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
+                className="neon-button"
               >
                 <Settings className="w-4 h-4 mr-2" />
-                Settings
+                CONFIG
               </button>
-              
+
               {botStatus.running ? (
                 <button
                   onClick={stopBot}
                   disabled={loading}
-                  className="flex items-center px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+                  className="neon-button neon-button-danger disabled:opacity-50"
                 >
-                  <Square className="w-4 h-4 mr-2" />
-                  Stop Bot
+                  {loading ? <div className="cyber-loader w-4 h-4 mr-2" /> : <Square className="w-4 h-4 mr-2" />}
+                  HALT
                 </button>
               ) : (
                 <button
                   onClick={startBot}
                   disabled={loading}
-                  className="flex items-center px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                  className="neon-button neon-button-success disabled:opacity-50"
                 >
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Bot
+                  {loading ? <div className="cyber-loader w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                  ACTIVATE
                 </button>
               )}
-            </div>
+            </motion.div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Configuration Panel */}
-        {showConfig && (
-          <div className="mb-6 bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h2 className="text-xl font-semibold mb-4">Enhanced Bot Configuration</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Cryptocurrency</label>
-                <Select
-                  value={cryptoList.find(c => c.value === config.symbol)}
-                  onChange={(selectedOption) => setConfig({...config, symbol: selectedOption.value})}
-                  options={cryptoList}
-                  styles={selectStyles}
-                  placeholder="Select cryptocurrency..."
-                  isSearchable={true}
-                />
+      <div className="max-w-7xl mx-auto px-6 py-8 relative z-10">
+        {/* Enhanced Configuration Panel */}
+        <AnimatePresence>
+          {showConfig && (
+            <motion.div 
+              className="mb-8 holo-card p-8"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <h2 className="section-title text-2xl mb-6 flex items-center">
+                <Shield className="w-6 h-6 mr-3" />
+                Neural Configuration Matrix
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-mono text-cyan-400 mb-3">QUANTUM ASSET</label>
+                  <Select
+                    value={cryptoList.find(c => c.value === config.symbol)}
+                    onChange={(option) => setConfig({...config, symbol: option.value})}
+                    options={cryptoList}
+                    styles={cyberSelectStyles}
+                    placeholder="Select Asset..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-mono text-cyan-400 mb-3">TIME DIMENSION</label>
+                  <Select
+                    value={timeframes.find(tf => tf.value === config.timeframe)}
+                    onChange={(option) => setConfig({...config, timeframe: option.value})}
+                    options={timeframes}
+                    styles={cyberSelectStyles}
+                    placeholder="Select Frame..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-mono text-cyan-400 mb-3">RSI NEURAL LENGTH</label>
+                  <input
+                    type="number"
+                    value={config.rsi_length}
+                    onChange={(e) => setConfig({...config, rsi_length: parseInt(e.target.value)})}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-cyan-400/30 rounded-lg text-white font-mono focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-mono text-cyan-400 mb-3">RISK BARRIER %</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={config.stop_loss_pct}
+                    onChange={(e) => setConfig({...config, stop_loss_pct: parseFloat(e.target.value)})}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-red-400/30 rounded-lg text-white font-mono focus:border-red-400 focus:ring-1 focus:ring-red-400/30"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-mono text-cyan-400 mb-3">PROFIT TARGET %</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={config.take_profit_pct}
+                    onChange={(e) => setConfig({...config, take_profit_pct: parseFloat(e.target.value)})}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-green-400/30 rounded-lg text-white font-mono focus:border-green-400 focus:ring-1 focus:ring-green-400/30"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-mono text-cyan-400 mb-3">POSITION SIZE</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={config.position_size}
+                    onChange={(e) => setConfig({...config, position_size: parseFloat(e.target.value)})}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-yellow-400/30 rounded-lg text-white font-mono focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30"
+                  />
+                </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-2">Timeframe</label>
-                <Select
-                  value={timeframes.find(tf => tf.value === config.timeframe)}
-                  onChange={(selectedOption) => setConfig({...config, timeframe: selectedOption.value})}
-                  options={timeframes}
-                  styles={selectStyles}
-                  placeholder="Select timeframe..."
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">RSI Length</label>
-                <input
-                  type="number"
-                  value={config.rsi_length}
-                  onChange={(e) => setConfig({...config, rsi_length: parseInt(e.target.value)})}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-white"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Stop Loss %</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={config.stop_loss_pct}
-                  onChange={(e) => setConfig({...config, stop_loss_pct: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-white"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Take Profit %</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={config.take_profit_pct}
-                  onChange={(e) => setConfig({...config, take_profit_pct: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-white"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Position Size</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={config.position_size}
-                  onChange={(e) => setConfig({...config, position_size: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-white"
-                />
-              </div>
-            </div>
-            
-            <div className="mt-4 flex items-center">
-              <input
-                type="checkbox"
-                id="grid_tp"
-                checked={config.enable_grid_tp}
-                onChange={(e) => setConfig({...config, enable_grid_tp: e.target.checked})}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="grid_tp" className="ml-2 text-sm font-medium">Enable Grid Take Profit</label>
-            </div>
-            
-            <div className="mt-6 flex justify-end space-x-3">
-              <button
-                onClick={() => setShowConfig(false)}
-                className="px-6 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={updateConfig}
-                disabled={loading}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
-              >
-                Save Configuration
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Timeframe Trading Control Panel */}
-        <div className="mb-6 bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
-            <Clock className="w-5 h-5 mr-2 text-blue-400" />
-            Timeframe Trading Control
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Selected Timeframe</label>
-              <div className="bg-gray-700 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-blue-400">
-                  {timeframes.find(tf => tf.value === config.timeframe)?.label || config.timeframe}
+              <div className="mt-6 flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="grid_tp"
+                    checked={config.enable_grid_tp}
+                    onChange={(e) => setConfig({...config, enable_grid_tp: e.target.checked})}
+                    className="w-5 h-5 text-cyan-400 bg-gray-800 border-cyan-400/30 rounded focus:ring-cyan-400/30"
+                  />
+                  <label htmlFor="grid_tp" className="ml-3 text-sm font-mono text-cyan-400">
+                    ENABLE GRID MATRIX
+                  </label>
                 </div>
-                <div className="text-sm text-gray-400">
-                  {timeframes.find(tf => tf.value === config.timeframe)?.minutes || 0} minutes per candle
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Trading Mode</label>
-              <div className="bg-gray-700 rounded-lg p-3 text-center">
-                <div className="text-lg font-semibold text-green-400">
-                  {config.timeframe === '1m' || config.timeframe === '5m' ? 'Scalping' :
-                   config.timeframe === '15m' || config.timeframe === '30m' ? 'Day Trading' :
-                   config.timeframe === '1h' || config.timeframe === '4h' ? 'Swing Trading' :
-                   'Position Trading'}
-                </div>
-                <div className="text-sm text-gray-400">
-                  Strategy: {config.timeframe === '1m' || config.timeframe === '5m' ? 'Quick Signals' :
-                            config.timeframe === '1d' || config.timeframe === '1w' ? 'Trend Following' :
-                            'RSI Momentum'}
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Expected Frequency</label>
-              <div className="bg-gray-700 rounded-lg p-3 text-center">
-                <div className="text-lg font-semibold text-yellow-400">
-                  {config.timeframe === '1m' ? '~20-50/day' :
-                   config.timeframe === '5m' ? '~10-20/day' :
-                   config.timeframe === '15m' ? '~5-15/day' :
-                   config.timeframe === '30m' ? '~3-8/day' :
-                   config.timeframe === '1h' ? '~1-5/day' :
-                   config.timeframe === '4h' ? '~1-3/day' :
-                   config.timeframe === '1d' ? '~1-5/week' :
-                   '~1-2/week'}
-                </div>
-                <div className="text-sm text-gray-400">Trade signals</div>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Risk Level</label>
-              <div className="bg-gray-700 rounded-lg p-3 text-center">
-                <div className={`text-lg font-semibold ${
-                  config.timeframe === '1m' || config.timeframe === '5m' ? 'text-red-400' :
-                  config.timeframe === '15m' || config.timeframe === '30m' ? 'text-orange-400' :
-                  config.timeframe === '1h' || config.timeframe === '4h' ? 'text-yellow-400' :
-                  'text-green-400'
-                }`}>
-                  {config.timeframe === '1m' || config.timeframe === '5m' ? 'HIGH' :
-                   config.timeframe === '15m' || config.timeframe === '30m' ? 'MEDIUM-HIGH' :
-                   config.timeframe === '1h' || config.timeframe === '4h' ? 'MEDIUM' :
-                   'LOW-MEDIUM'}
-                </div>
-                <div className="text-sm text-gray-400">
-                  {config.timeframe === '1m' || config.timeframe === '5m' ? 'High frequency' :
-                   config.timeframe === '1d' || config.timeframe === '1w' ? 'Stable trends' :
-                   'Balanced approach'}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Quick Timeframe Switcher */}
-          <div className="border-t border-gray-600 pt-4">
-            <label className="block text-sm font-medium mb-3">Quick Timeframe Switch</label>
-            <div className="flex flex-wrap gap-2">
-              {timeframes.map((tf) => (
+                
                 <button
-                  key={tf.value}
-                  onClick={() => {
-                    setConfig({...config, timeframe: tf.value});
-                    if (botStatus.running) {
-                      stopBot().then(() => {
-                        setTimeout(() => startBot(), 1000);
-                      });
-                    }
-                  }}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    config.timeframe === tf.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-600 hover:bg-gray-500 text-gray-300'
-                  }`}
+                  onClick={() => setShowConfig(false)}
+                  className="neon-button"
                 >
-                  {tf.label}
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  LOCK CONFIG
                 </button>
-              ))}
-            </div>
-            
-            {botStatus.running && (
-              <div className="mt-3 p-3 bg-blue-900 bg-opacity-30 rounded-lg border border-blue-600">
-                <div className="flex items-center text-blue-400">
-                  <Activity className="w-4 h-4 mr-2" />
-                  <span className="text-sm">
-                    Bot is actively trading on <strong>{timeframes.find(tf => tf.value === config.timeframe)?.label}</strong> timeframe
-                  </span>
-                </div>
               </div>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">Bot Status</p>
-                <p className={`text-2xl font-bold ${botStatus.running ? 'text-green-400' : 'text-red-400'}`}>
-                  {botStatus.running ? 'RUNNING' : 'STOPPED'}
-                </p>
-                <p className="text-xs text-gray-500">{config.symbol} • {config.timeframe}</p>
-              </div>
-              <Activity className={`w-8 h-8 ${botStatus.running ? 'text-green-400' : 'text-gray-500'}`} />
-            </div>
-          </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">{config.symbol} Price</p>
-                <p className="text-2xl font-bold text-white">
-                  {formatCurrency(botStatus.current_price)}
-                </p>
-                <p className="text-xs text-gray-500">Real-time</p>
-              </div>
-              <DollarSign className="w-8 h-8 text-blue-400" />
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">RSI ({config.rsi_length})</p>
-                <p className={`text-2xl font-bold ${
-                  botStatus.rsi_value > 70 ? 'text-red-400' : 
-                  botStatus.rsi_value < 30 ? 'text-green-400' : 'text-yellow-400'
-                }`}>
-                  {botStatus.rsi_value.toFixed(1)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {botStatus.rsi_value > 70 ? 'Overbought' : 
-                   botStatus.rsi_value < 30 ? 'Oversold' : 'Neutral'}
-                </p>
-              </div>
-              <BarChart3 className="w-8 h-8 text-purple-400" />
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">Daily P&L</p>
-                <p className={`text-2xl font-bold ${botStatus.daily_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {formatCurrency(botStatus.daily_pnl)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {botStatus.total_trades} trades
-                </p>
-              </div>
-              {botStatus.daily_pnl >= 0 ? (
-                <TrendingUp className="w-8 h-8 text-green-400" />
-              ) : (
-                <TrendingDown className="w-8 h-8 text-red-400" />
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Neural Status Grid */}
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <MetricCard
+            title="NEURAL STATUS"
+            value={botStatus.running ? 'ACTIVE' : 'DORMANT'}
+            change={botStatus.running ? '+ONLINE' : 'OFFLINE'}
+            icon={botStatus.running ? Zap : Eye}
+            type={botStatus.running ? 'success' : 'danger'}
+          />
+          
+          <MetricCard
+            title={`${config.symbol} QUANTUM PRICE`}
+            value={formatCurrency(botStatus.current_price)}
+            change="+2.4%"
+            icon={DollarSign}
+            type="default"
+          />
+          
+          <MetricCard
+            title="RSI NEURAL FIELD"
+            value={botStatus.rsi_value.toFixed(1)}
+            change={botStatus.rsi_value > 70 ? 'OVERBOUGHT' : botStatus.rsi_value < 30 ? 'OVERSOLD' : 'NEUTRAL'}
+            icon={BarChart3}
+            type={botStatus.rsi_value > 70 ? 'danger' : botStatus.rsi_value < 30 ? 'success' : 'warning'}
+          />
+          
+          <MetricCard
+            title="PROFIT MATRIX"
+            value={formatCurrency(botStatus.daily_pnl)}
+            change={botStatus.total_trades ? `${botStatus.total_trades} TRADES` : 'NO TRADES'}
+            icon={botStatus.daily_pnl >= 0 ? TrendingUp : TrendingDown}
+            type={botStatus.daily_pnl >= 0 ? 'success' : 'danger'}
+          />
+        </motion.div>
 
         {/* Navigation Tabs */}
-        <div className="mb-6">
-          <div className="border-b border-gray-700">
-            <nav className="-mb-px flex space-x-8">
-              {['dashboard', 'charts', 'position', 'analytics'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setSelectedTab(tab)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${
-                    selectedTab === tab
-                      ? 'border-blue-500 text-blue-500'
-                      : 'border-transparent text-gray-400 hover:text-gray-300'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </nav>
+        <div className="mb-8">
+          <div className="flex space-x-4 overflow-x-auto pb-2">
+            <TabButton id="neural-core" label="Neural Core" icon={Cpu} active={selectedTab === 'neural-core'} onClick={setSelectedTab} />
+            <TabButton id="quantum-charts" label="Quantum Charts" icon={BarChart3} active={selectedTab === 'quantum-charts'} onClick={setSelectedTab} />
+            <TabButton id="position-matrix" label="Position Matrix" icon={Target} active={selectedTab === 'position-matrix'} onClick={setSelectedTab} />
+            <TabButton id="system-diagnostics" label="System Diagnostics" icon={Activity} active={selectedTab === 'system-diagnostics'} onClick={setSelectedTab} />
           </div>
         </div>
 
         {/* Tab Content */}
-        {selectedTab === 'dashboard' && (
-          <div className="space-y-6">
-            {renderMetrics()}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {renderPriceChart()}
-              {renderPositionDetails()}
-            </div>
-          </div>
-        )}
-
-        {selectedTab === 'charts' && (
-          <div className="space-y-6">
-            {renderPriceChart()}
-            {renderRSIChart()}
-          </div>
-        )}
-
-        {selectedTab === 'position' && (
-          <div className="space-y-6">
-            {renderPositionDetails()}
-            {renderMetrics()}
-          </div>
-        )}
-
-        {selectedTab === 'analytics' && (
-          <div className="space-y-6">
-            {renderMetrics()}
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h2 className="text-xl font-semibold mb-4">Detailed Analytics</h2>
-              {metrics ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">Trade Statistics</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Symbol:</span>
-                        <span className="text-white">{metrics.symbol}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Timeframe:</span>
-                        <span className="text-white">{metrics.timeframe}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Total Trades:</span>
-                        <span className="text-white">{metrics.total_trades}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Winning Trades:</span>
-                        <span className="text-green-400">{metrics.winning_trades}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Losing Trades:</span>
-                        <span className="text-red-400">{metrics.losing_trades}</span>
-                      </div>
-                    </div>
-                  </div>
+        <AnimatePresence mode="wait">
+          {selectedTab === 'neural-core' && (
+            <motion.div
+              key="neural-core"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="space-y-8"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                  {renderNeuralChart()}
+                </div>
+                
+                <div className="holo-card p-6">
+                  <h3 className="section-title mb-6 flex items-center">
+                    <Target className="w-5 h-5 mr-2" />
+                    Active Position
+                  </h3>
                   
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">Performance Metrics</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Win Rate:</span>
-                        <span className="text-yellow-400">{formatPercent(metrics.win_rate)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Total P&L:</span>
-                        <span className={metrics.total_pnl >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          {formatCurrency(metrics.total_pnl)}
+                  {botStatus.position ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Side:</span>
+                        <span className={`font-bold text-lg ${
+                          botStatus.position.side === 'LONG' ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {botStatus.position.side}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Avg Profit:</span>
-                        <span className="text-green-400">{formatCurrency(metrics.average_profit)}</span>
+                      
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Entry:</span>
+                        <span className="font-mono text-cyan-400">
+                          {formatCurrency(botStatus.position.entry_price)}
+                        </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Avg Loss:</span>
-                        <span className="text-red-400">{formatCurrency(metrics.average_loss)}</span>
+                      
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Current:</span>
+                        <span className="font-mono text-white">
+                          {formatCurrency(botStatus.position.current_price)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">P&L:</span>
+                        <span className={`font-mono font-bold ${
+                          botStatus.position.pnl >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {formatCurrency(botStatus.position.pnl)} 
+                          ({formatPercent(botStatus.position.pnl_pct)})
+                        </span>
+                      </div>
+                      
+                      <div className="mt-6 pt-4 border-t border-gray-700">
+                        <div className="text-xs text-gray-400 mb-2">Grid Progress</div>
+                        <div className="progress-bar-container">
+                          <div className="progress-bar" style={{ width: '60%' }} />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Target className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+                      <p className="text-gray-400">No Active Position</p>
+                      <p className="text-xs text-gray-500 mt-2">Neural system monitoring for signals...</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <p className="text-center text-gray-400 py-8">No trading data available yet</p>
-              )}
-            </div>
-          </div>
-        )}
+              </div>
+            </motion.div>
+          )}
+          
+          {selectedTab === 'quantum-charts' && (
+            <motion.div
+              key="quantum-charts"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="space-y-8"
+            >
+              {renderNeuralChart()}
+              
+              <div className="holo-card p-6">
+                <h3 className="section-title mb-4 flex items-center">
+                  <Activity className="w-5 h-5 mr-2" />
+                  RSI Quantum Field
+                </h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="rsiGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(139, 92, 246, 0.1)" />
+                    <XAxis dataKey="time" stroke="rgba(224, 230, 237, 0.5)" fontSize={10} />
+                    <YAxis domain={[0, 100]} stroke="rgba(224, 230, 237, 0.5)" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(20, 25, 40, 0.95)', 
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        borderRadius: '8px'
+                      }} 
+                    />
+                    
+                    <ReferenceLine y={70} stroke="#FF073A" strokeDasharray="3 3" />
+                    <ReferenceLine y={30} stroke="#39FF14" strokeDasharray="3 3" />
+                    <ReferenceLine y={50} stroke="rgba(224, 230, 237, 0.3)" strokeDasharray="1 1" />
+                    
+                    <Area 
+                      type="monotone" 
+                      dataKey="rsi" 
+                      stroke="#8B5CF6" 
+                      strokeWidth={2}
+                      fill="url(#rsiGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
