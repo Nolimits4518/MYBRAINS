@@ -68,6 +68,236 @@ class TradingConfig:
         self.max_positions = 5
         self.auto_trade_enabled = True
 
+def calculate_rsi(prices, period=14):
+    """Calculate RSI (Relative Strength Index)"""
+    try:
+        if len(prices) < period + 1:
+            return 50.0
+        
+        # Calculate price changes
+        deltas = np.diff(prices)
+        
+        # Separate gains and losses
+        gains = np.where(deltas > 0, deltas, 0)
+        losses = np.where(deltas < 0, -deltas, 0)
+        
+        # Calculate average gains and losses
+        avg_gain = np.mean(gains[-period:])
+        avg_loss = np.mean(losses[-period:])
+        
+        if avg_loss == 0:
+            return 100.0
+        
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        
+        return float(rsi)
+    except Exception as e:
+        logging.error(f"❌ RSI calculation error: {e}")
+        return 50.0
+
+def generate_trading_signal(symbol, current_price, rsi_value):
+    """Generate trading signal based on RSI"""
+    signal = {
+        'symbol': symbol,
+        'timestamp': datetime.now().isoformat(),
+        'price': current_price,
+        'rsi': rsi_value,
+        'signal': 'HOLD',
+        'action': None,
+        'confidence': 0.5
+    }
+    
+    # RSI-based signal generation
+    if rsi_value <= trading_config.rsi_oversold:
+        signal['signal'] = 'BUY'
+        signal['action'] = 'LONG'
+        signal['confidence'] = min(1.0, (trading_config.rsi_oversold - rsi_value) / 10)
+    elif rsi_value >= trading_config.rsi_overbought:
+        signal['signal'] = 'SELL'
+        signal['action'] = 'SHORT'
+        signal['confidence'] = min(1.0, (rsi_value - trading_config.rsi_overbought) / 10)
+    
+    return signal
+
+async def execute_signal_on_platforms(signal):
+    """Execute trading signal on all connected platforms"""
+    if not auto_trading_enabled:
+        logging.info("🔄 Auto trading disabled - signal not executed")
+        return
+    
+    try:
+        # Get all connected platforms
+        platforms = await platform_manager.get_platforms()
+        connected_platforms = [p for p in platforms if p.get('is_connected', False)]
+        
+        if not connected_platforms:
+            logging.warning("⚠️ No connected platforms - signal not executed")
+            return
+        
+        # Execute signal on each connected platform
+        for platform in connected_platforms:
+            try:
+                platform_id = platform['platform_id']
+                
+                # Create trade order from signal
+                if signal['signal'] == 'BUY':
+                    order = TradeOrder(
+                        symbol=signal['symbol'],
+                        action=TradeAction.BUY,
+                        quantity=trading_config.position_size,
+                        price=signal['price'],
+                        order_type='MARKET'
+                    )
+                elif signal['signal'] == 'SELL':
+                    order = TradeOrder(
+                        symbol=signal['symbol'],
+                        action=TradeAction.SELL,
+                        quantity=trading_config.position_size,
+                        price=signal['price'],
+                        order_type='MARKET'
+                    )
+                else:
+                    continue
+                
+                # Execute trade on platform
+                result = await platform_manager.execute_trade_on_platform(platform_id, order)
+                
+                if result.success:
+                    logging.info(f"✅ Signal executed on {platform['platform_name']}: {signal['signal']} {signal['symbol']}")
+                    
+                    # Send Telegram notification
+                    await send_telegram_notification(
+                        f"🎯 TRADE EXECUTED\n"
+                        f"Platform: {platform['platform_name']}\n"
+                        f"Signal: {signal['signal']} {signal['symbol']}\n"
+                        f"Price: ${signal['price']:.4f}\n"
+                        f"RSI: {signal['rsi']:.2f}\n"
+                        f"Confidence: {signal['confidence']:.2f}"
+                    )
+                else:
+                    logging.error(f"❌ Signal execution failed on {platform['platform_name']}: {result.message}")
+                    
+            except Exception as e:
+                logging.error(f"❌ Error executing signal on {platform.get('platform_name', 'unknown')}: {e}")
+                
+    except Exception as e:
+        logging.error(f"❌ Error executing signal on platforms: {e}")
+
+async def send_telegram_notification(message):
+    """Send notification to Telegram"""
+    try:
+        if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+            bot = Bot(token=TELEGRAM_BOT_TOKEN)
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+            logging.info("✅ Telegram notification sent")
+    except Exception as e:
+        logging.error(f"❌ Failed to send Telegram message: {e}")
+
+# WebSocket handler for real-time updates
+async def websocket_handler(websocket, path):
+    """Handle WebSocket connections for real-time data"""
+    websocket_connections.add(websocket)
+    try:
+        await websocket.wait_closed()
+    except Exception as e:
+        logging.error(f"WebSocket error: {e}")
+    finally:
+        websocket_connections.discard(websocket)
+
+async def broadcast_to_websockets(data):
+    """Broadcast data to all connected WebSocket clients"""
+    if websocket_connections:
+        message = json.dumps(data)
+        disconnected = set()
+        
+        for ws in websocket_connections:
+            try:
+                await ws.send(message)
+            except Exception as e:
+                disconnected.add(ws)
+        
+        # Remove disconnected clients
+        websocket_connections -= disconnected
+
+# Background task for RSI monitoring and signal generation
+async def rsi_monitoring_task():
+    """Background task to monitor RSI and generate signals"""
+    while bot_active:
+        try:
+            # Get current market data
+            symbols = ['bitcoin', 'ethereum', 'binancecoin']  # Example symbols
+            
+            for symbol in symbols:
+                try:
+                    # Get price data from CoinGecko
+                    price_data = cg.get_coin_market_chart_by_id(
+                        id=symbol,
+                        vs_currency='usd',
+                        days=1
+                    )
+                    
+                    if price_data and 'prices' in price_data:
+                        prices = [p[1] for p in price_data['prices']]
+                        current_price = prices[-1] if prices else 0
+                        
+                        # Calculate RSI
+                        rsi = calculate_rsi(prices)
+                        
+                        # Generate trading signal
+                        signal = generate_trading_signal(symbol.upper(), current_price, rsi)
+                        current_signals[symbol] = signal
+                        
+                        # Execute signal on connected platforms
+                        if signal['signal'] in ['BUY', 'SELL']:
+                            await execute_signal_on_platforms(signal)
+                        
+                        # Broadcast to WebSocket clients
+                        await broadcast_to_websockets({
+                            'type': 'signal_update',
+                            'data': signal
+                        })
+                        
+                except Exception as e:
+                    logging.error(f"❌ Error processing {symbol}: {e}")
+                    
+            # Wait before next iteration
+            await asyncio.sleep(30)  # Check every 30 seconds
+            
+        except Exception as e:
+            logging.error(f"❌ RSI monitoring error: {e}")
+            await asyncio.sleep(60)  # Wait longer on error
+
+# Start background tasks
+background_tasks = []
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle"""
+    global bot_active, background_tasks
+    
+    # Startup
+    logging.info("🚀 Starting Enhanced RSI Trading System...")
+    bot_active = True
+    
+    # Start background tasks
+    rsi_task = asyncio.create_task(rsi_monitoring_task())
+    background_tasks.append(rsi_task)
+    
+    yield
+    
+    # Shutdown
+    logging.info("🛑 Shutting down Enhanced RSI Trading System...")
+    bot_active = False
+    
+    # Cancel background tasks
+    for task in background_tasks:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
 trading_config = TradingConfig()
 
 # Global bot state (keeping existing functionality)
