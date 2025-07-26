@@ -642,7 +642,8 @@ class EnhancedRSIBotTester:
         # Critical issues
         critical_failures = [r for r in self.test_results if not r["success"] and 
                            any(critical in r["name"] for critical in 
-                               ["100+ Cryptocurrencies", "9 Timeframes", "Bot Status", "Crypto List"])]
+                               ["100+ Cryptocurrencies", "9 Timeframes", "Bot Status", "Crypto List", 
+                                "Platform List", "Platform Analysis", "2FA Setup Generation"])]
         
         if critical_failures:
             print("\n🚨 CRITICAL ISSUES FOUND:")
