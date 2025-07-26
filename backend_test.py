@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Any
 
 class EnhancedRSIBotTester:
-    def __init__(self, base_url="https://eb4be883-8e6c-40a1-977f-51245952b0cc.preview.emergentagent.com"):
+    def __init__(self, base_url="https://e43dbe7c-0788-4a57-a112-34fe20a53a1b.preview.emergentagent.com"):
         self.base_url = base_url
         self.tests_run = 0
         self.tests_passed = 0
