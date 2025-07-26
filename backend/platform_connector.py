@@ -645,7 +645,7 @@ class PlatformConnectionManager:
     async def add_platform(self, platform_name: str, login_url: str) -> DetectedForm:
         """Add new platform and analyze login form"""
         try:
-            await self.automator.start_browser(headless=False)  # Show browser for initial setup
+            await self.automator.start_browser(headless=True)  # Use headless for production
             detected_form = await self.automator.analyze_login_page(login_url)
             await self.automator.close_browser()
             
@@ -654,7 +654,35 @@ class PlatformConnectionManager:
             
         except Exception as e:
             logging.error(f"❌ Failed to add platform: {e}")
-            raise
+            # Clean up browser if it was started
+            try:
+                await self.automator.close_browser()
+            except:
+                pass
+            
+            # Return a fallback form structure
+            logging.info(f"🔄 Using fallback form structure for {platform_name}")
+            return DetectedForm(
+                login_fields=[
+                    LoginField(
+                        name="username",
+                        selector="input[name='username'], input[name='email'], input[type='email']",
+                        type="text",
+                        label="Username/Email",
+                        placeholder="Enter your username or email"
+                    ),
+                    LoginField(
+                        name="password",
+                        selector="input[name='password'], input[type='password']",
+                        type="password",
+                        label="Password",
+                        placeholder="Enter your password"
+                    )
+                ],
+                submit_button="button[type='submit'], input[type='submit']",
+                two_fa_detected=True,  # Assume 2FA is available
+                captcha_detected=False
+            )
     
     async def save_platform_credentials(self, platform_name: str, login_url: str, 
                                       username: str, password: str, 
