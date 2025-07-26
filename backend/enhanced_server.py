@@ -913,6 +913,70 @@ async def update_trading_config(config: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/market/data")
+async def get_market_data():
+    """Get market data for charts"""
+    try:
+        # Get simple market data for charts
+        symbols = ['bitcoin', 'ethereum', 'binancecoin']
+        market_data = {}
+        
+        for symbol in symbols:
+            try:
+                # Get simplified price data
+                price_data = cg.get_coin_market_chart_by_id(
+                    id=symbol,
+                    vs_currency='usd',
+                    days=1
+                )
+                
+                if price_data and 'prices' in price_data:
+                    prices = [p[1] for p in price_data['prices']]
+                    timestamps = [p[0] for p in price_data['prices']]
+                    
+                    current_price = prices[-1] if prices else 0
+                    rsi = calculate_rsi(prices)
+                    
+                    # Generate chart data
+                    chart_data = []
+                    for i in range(0, len(prices), max(1, len(prices) // 50)):  # Sample 50 points
+                        chart_data.append({
+                            'time': timestamps[i],
+                            'price': prices[i],
+                            'rsi': calculate_rsi(prices[max(0, i-14):i+1]) if i >= 14 else 50
+                        })
+                    
+                    market_data[symbol] = {
+                        'symbol': symbol.upper(),
+                        'price': current_price,
+                        'rsi': rsi,
+                        'chart_data': chart_data,
+                        'signal': generate_trading_signal(symbol.upper(), current_price, rsi)
+                    }
+                    
+            except Exception as e:
+                logging.error(f"Error fetching {symbol}: {e}")
+                # Provide fallback data
+                market_data[symbol] = {
+                    'symbol': symbol.upper(),
+                    'price': 0,
+                    'rsi': 50,
+                    'chart_data': [],
+                    'signal': {'signal': 'HOLD', 'confidence': 0}
+                }
+        
+        return {
+            "status": "success",
+            "data": market_data
+        }
+        
+    except Exception as e:
+        logging.error(f"❌ Error getting market data: {e}")
+        return {
+            "status": "error",
+            "data": {}
+        }
+
 @app.get("/api/bot/status")
 async def get_bot_status():
     """Get comprehensive bot status including RSI and trading info"""
