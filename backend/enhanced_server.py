@@ -258,11 +258,11 @@ async def rsi_monitoring_task():
                         if signal['signal'] in ['BUY', 'SELL']:
                             await execute_signal_on_platforms(signal)
                         
-                        # Broadcast to WebSocket clients
-                        await broadcast_to_websockets({
-                            'type': 'signal_update',
-                            'data': signal
-                        })
+                        # Broadcast to WebSocket clients (temporarily disabled)
+                        # await broadcast_to_websockets({
+                        #     'type': 'signal_update',
+                        #     'data': signal
+                        # })
                         
                 except Exception as e:
                     logging.error(f"❌ Error processing {symbol}: {e}")
