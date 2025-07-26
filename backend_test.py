@@ -627,6 +627,7 @@ class EnhancedRSIBotTester:
             "OHLCV & Charts": ["OHLCV", "Chart Data", "RSI Calculation"],
             "Analytics": ["Metrics", "Analytics"],
             "Bot Functionality": ["Bot Status", "Start Enhanced Bot", "Stop Bot"],
+            "Platform Connector": ["Platform", "2FA", "Credentials"],
             "Integration": ["Telegram", "Root Endpoint"]
         }
         
