@@ -966,6 +966,18 @@ function App() {
               </div>
             </motion.div>
           )}
+          
+          {selectedTab === 'platform-connector' && (
+            <motion.div
+              key="platform-connector"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="space-y-8"
+            >
+              <PlatformConnector />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
     </div>
