@@ -122,6 +122,8 @@ def generate_trading_signal(symbol, current_price, rsi_value):
 
 async def execute_signal_on_platforms(signal):
     """Execute trading signal on all connected platforms"""
+    global auto_trading_enabled
+    
     if not auto_trading_enabled:
         logging.info("🔄 Auto trading disabled - signal not executed")
         return
