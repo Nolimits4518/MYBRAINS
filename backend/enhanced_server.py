@@ -979,28 +979,26 @@ async def get_bot_status():
         platforms = await platform_manager.get_platforms()
         connected_count = sum(1 for p in platforms if p.get('is_connected', False))
         
-        # Get current market data
-        current_crypto_data = {}
-        for symbol in ['bitcoin', 'ethereum', 'binancecoin']:
-            try:
-                price_data = cg.get_coin_market_chart_by_id(
-                    id=symbol,
-                    vs_currency='usd',
-                    days=1
-                )
-                
-                if price_data and 'prices' in price_data:
-                    prices = [p[1] for p in price_data['prices']]
-                    current_price = prices[-1] if prices else 0
-                    rsi = calculate_rsi(prices)
-                    
-                    current_crypto_data[symbol] = {
-                        'price': current_price,
-                        'rsi': rsi,
-                        'signal': generate_trading_signal(symbol.upper(), current_price, rsi)
-                    }
-            except:
-                pass
+        # Use simple mock data for now
+        import random
+        
+        current_crypto_data = {
+            'bitcoin': {
+                'price': 65000 + random.uniform(-1000, 1000),
+                'rsi': 50 + random.uniform(-20, 20),
+                'signal': generate_trading_signal('BITCOIN', 65000, 50)
+            },
+            'ethereum': {
+                'price': 3200 + random.uniform(-100, 100),
+                'rsi': 50 + random.uniform(-20, 20),
+                'signal': generate_trading_signal('ETHEREUM', 3200, 50)
+            },
+            'binancecoin': {
+                'price': 580 + random.uniform(-50, 50),
+                'rsi': 50 + random.uniform(-20, 20),
+                'signal': generate_trading_signal('BINANCECOIN', 580, 50)
+            }
+        }
         
         return {
             "status": "success",
