@@ -271,33 +271,6 @@ async def rsi_monitoring_task():
 # Start background tasks
 background_tasks = []
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Manage application lifecycle"""
-    global bot_active, background_tasks
-    
-    # Startup
-    logging.info("🚀 Starting Enhanced RSI Trading System...")
-    bot_active = True
-    
-    # Start background tasks
-    rsi_task = asyncio.create_task(rsi_monitoring_task())
-    background_tasks.append(rsi_task)
-    
-    yield
-    
-    # Shutdown
-    logging.info("🛑 Shutting down Enhanced RSI Trading System...")
-    bot_active = False
-    
-    # Cancel background tasks
-    for task in background_tasks:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-
 trading_config = TradingConfig()
 
 # Global bot state (keeping existing functionality)
