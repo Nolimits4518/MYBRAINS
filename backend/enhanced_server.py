@@ -98,8 +98,8 @@ class PlatformCredentialsRequest(BaseModel):
     platform_id: str
     username: str
     password: str
-    api_key: str = ""
-    api_secret: str = ""
+    server: str = ""
+    additional_fields: dict = {}
     enable_2fa: bool = False
     two_fa_method: str = "none"
     totp_secret: str = ""
