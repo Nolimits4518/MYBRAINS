@@ -227,6 +227,8 @@ async def broadcast_to_websockets(data):
 # Background task for RSI monitoring and signal generation
 async def rsi_monitoring_task():
     """Background task to monitor RSI and generate signals"""
+    global bot_active, current_signals, websocket_connections
+    
     while bot_active:
         try:
             # Get current market data
