@@ -54,7 +54,7 @@ current_positions = {}
 trade_history = []
 websocket_connections = set()
 current_signals = {}
-auto_trading_enabled = False
+auto_trading_enabled = True  # Enable auto trading by default
 
 # RSI Trading Configuration
 class TradingConfig:
