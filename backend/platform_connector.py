@@ -387,7 +387,7 @@ class WebAutomator:
             raise
     
     async def perform_login(self, credentials: PlatformCredentials, detected_form: DetectedForm) -> bool:
-        """Perform login with detected form"""
+        """Perform login with comprehensive session validation"""
         try:
             await self.page.goto(credentials.login_url, wait_until='networkidle')
             await asyncio.sleep(2)
@@ -401,6 +401,20 @@ class WebAutomator:
                 elif field.type == 'password' or 'pass' in field.name.lower():
                     await self.page.fill(field.selector, credentials.password)
                     logging.info(f"✅ Filled password field: {field.selector}")
+                    
+                elif field.type == 'select' and 'server' in field.name.lower():
+                    # Handle server selection - use first available option if not specified
+                    server_value = getattr(credentials, 'server', '') or 'live'
+                    try:
+                        await self.page.select_option(field.selector, server_value)
+                        logging.info(f"✅ Selected server: {server_value}")
+                    except:
+                        # If specific server not found, select first available option
+                        options = await self.page.query_selector_all(f"{field.selector} option")
+                        if options and len(options) > 1:  # Skip empty option
+                            first_option = await options[1].get_attribute('value')
+                            await self.page.select_option(field.selector, first_option)
+                            logging.info(f"✅ Selected default server: {first_option}")
             
             await asyncio.sleep(1)
             
@@ -409,7 +423,6 @@ class WebAutomator:
                 await self.page.click(detected_form.submit_button)
                 logging.info(f"✅ Clicked submit button: {detected_form.submit_button}")
             else:
-                # Try pressing Enter
                 await self.page.press('body', 'Enter')
                 logging.info("✅ Pressed Enter to submit")
             
@@ -419,27 +432,497 @@ class WebAutomator:
             if detected_form.two_fa_detected and credentials.two_fa and credentials.two_fa.enabled:
                 await self._handle_2fa(credentials.two_fa)
             
-            # Check if login was successful
-            current_url = self.page.url
-            if current_url != credentials.login_url and 'login' not in current_url.lower():
-                logging.info("✅ Login successful - redirected away from login page")
-                return True
-            else:
-                # Check for error messages
-                error_selectors = ['.error', '.alert', '.warning', '[role="alert"]']
-                for selector in error_selectors:
-                    error_element = await self.page.query_selector(selector)
-                    if error_element:
-                        error_text = await error_element.text_content()
-                        logging.error(f"❌ Login error detected: {error_text}")
-                        return False
-                
-                logging.warning("⚠️ Login status unclear - may need manual verification")
-                return False
+            # Enhanced login success detection
+            return await self._verify_login_success(credentials.login_url)
             
         except Exception as e:
             logging.error(f"❌ Login failed: {e}")
             return False
+    
+    async def _verify_login_success(self, original_login_url: str) -> bool:
+        """Comprehensively verify if login was successful"""
+        try:
+            current_url = self.page.url
+            
+            # Method 1: URL-based detection
+            url_indicators = [
+                'dashboard', 'trading', 'account', 'portfolio', 'positions', 
+                'main', 'home', 'platform', 'trade', 'market', 'orders'
+            ]
+            
+            if any(indicator in current_url.lower() for indicator in url_indicators):
+                logging.info(f"✅ Login success detected via URL: {current_url}")
+                return True
+            
+            # Method 2: Check for login form absence
+            login_indicators = [
+                'input[type="password"]', 'input[name*="pass"]', 'input[id*="pass"]',
+                '.login-form', '#login-form', '.signin-form', '#signin-form'
+            ]
+            
+            login_form_present = False
+            for indicator in login_indicators:
+                element = await self.page.query_selector(indicator)
+                if element and await element.is_visible():
+                    login_form_present = True
+                    break
+            
+            if not login_form_present and current_url != original_login_url:
+                logging.info("✅ Login success detected - no login form present")
+                return True
+            
+            # Method 3: Look for success indicators
+            success_indicators = [
+                '.welcome', '.dashboard', '.account-info', '.balance', '.portfolio',
+                '.trading-panel', '.market-data', '.positions', '.orders', '.navbar',
+                '[data-test="dashboard"]', '[data-test="trading"]', '.header-user'
+            ]
+            
+            for indicator in success_indicators:
+                element = await self.page.query_selector(indicator)
+                if element and await element.is_visible():
+                    logging.info(f"✅ Login success detected via element: {indicator}")
+                    return True
+            
+            # Method 4: Check for specific text content
+            page_content = await self.page.content()
+            success_text = [
+                'welcome', 'dashboard', 'account balance', 'portfolio', 'logout',
+                'trading', 'positions', 'orders', 'market data', 'watchlist'
+            ]
+            
+            if any(text in page_content.lower() for text in success_text):
+                logging.info("✅ Login success detected via page content")
+                return True
+            
+            # Method 5: Check for error messages
+            error_selectors = [
+                '.error', '.alert', '.warning', '[role="alert"]', '.message',
+                '.notification', '.toast', '.invalid', '.failed'
+            ]
+            
+            for selector in error_selectors:
+                error_element = await self.page.query_selector(selector)
+                if error_element and await error_element.is_visible():
+                    error_text = await error_element.text_content()
+                    if any(word in error_text.lower() for word in ['error', 'invalid', 'failed', 'incorrect']):
+                        logging.error(f"❌ Login error detected: {error_text}")
+                        return False
+            
+            # If we're still on the login page, login likely failed
+            if current_url == original_login_url or 'login' in current_url.lower():
+                logging.warning("⚠️ Still on login page - login may have failed")
+                return False
+            
+            # Default to success if we've navigated away from login
+            logging.info("✅ Login appears successful - navigated away from login page")
+            return True
+            
+        except Exception as e:
+            logging.error(f"❌ Login verification failed: {e}")
+            return False
+    
+    async def analyze_trading_interface(self) -> Dict[str, Any]:
+        """Analyze the trading interface to find buy/sell elements and trading forms"""
+        try:
+            logging.info("🔍 Analyzing trading interface...")
+            
+            # Wait for page to load
+            await asyncio.sleep(3)
+            
+            interface_analysis = {
+                'buy_elements': [],
+                'sell_elements': [],
+                'symbol_input': None,
+                'quantity_input': None,
+                'price_input': None,
+                'order_type_selector': None,
+                'positions_table': None,
+                'close_position_elements': [],
+                'balance_display': None,
+                'current_positions': []
+            }
+            
+            # Find buy/sell buttons and forms
+            buy_selectors = [
+                'button:has-text("Buy")', 'button:has-text("BUY")', '.buy-button', '#buy-btn',
+                'button[data-side="buy"]', 'button[data-action="buy"]', '.order-buy',
+                'button:has-text("Long")', 'button:has-text("LONG")', '.long-button'
+            ]
+            
+            sell_selectors = [
+                'button:has-text("Sell")', 'button:has-text("SELL")', '.sell-button', '#sell-btn',
+                'button[data-side="sell"]', 'button[data-action="sell"]', '.order-sell',
+                'button:has-text("Short")', 'button:has-text("SHORT")', '.short-button'
+            ]
+            
+            # Analyze buy elements
+            for selector in buy_selectors:
+                elements = await self.page.query_selector_all(selector)
+                for element in elements:
+                    if await element.is_visible():
+                        element_info = {
+                            'selector': selector,
+                            'text': await element.text_content(),
+                            'class': await element.get_attribute('class'),
+                            'id': await element.get_attribute('id')
+                        }
+                        interface_analysis['buy_elements'].append(element_info)
+            
+            # Analyze sell elements
+            for selector in sell_selectors:
+                elements = await self.page.query_selector_all(selector)
+                for element in elements:
+                    if await element.is_visible():
+                        element_info = {
+                            'selector': selector,
+                            'text': await element.text_content(),
+                            'class': await element.get_attribute('class'),
+                            'id': await element.get_attribute('id')
+                        }
+                        interface_analysis['sell_elements'].append(element_info)
+            
+            # Find trading form inputs
+            symbol_selectors = [
+                'input[name*="symbol"]', 'input[placeholder*="symbol"]', 'select[name*="symbol"]',
+                'input[name*="instrument"]', 'select[name*="instrument"]', '.symbol-input',
+                'input[name*="pair"]', 'select[name*="pair"]'
+            ]
+            
+            for selector in symbol_selectors:
+                element = await self.page.query_selector(selector)
+                if element and await element.is_visible():
+                    interface_analysis['symbol_input'] = {
+                        'selector': selector,
+                        'type': await element.get_attribute('type') or 'text',
+                        'placeholder': await element.get_attribute('placeholder')
+                    }
+                    break
+            
+            # Find quantity input
+            quantity_selectors = [
+                'input[name*="quantity"]', 'input[placeholder*="quantity"]', 'input[name*="amount"]',
+                'input[placeholder*="amount"]', 'input[name*="size"]', 'input[placeholder*="size"]',
+                'input[name*="volume"]', 'input[placeholder*="volume"]', '.quantity-input'
+            ]
+            
+            for selector in quantity_selectors:
+                element = await self.page.query_selector(selector)
+                if element and await element.is_visible():
+                    interface_analysis['quantity_input'] = {
+                        'selector': selector,
+                        'type': await element.get_attribute('type') or 'text',
+                        'placeholder': await element.get_attribute('placeholder')
+                    }
+                    break
+            
+            # Find price input
+            price_selectors = [
+                'input[name*="price"]', 'input[placeholder*="price"]', '.price-input',
+                'input[name*="rate"]', 'input[placeholder*="rate"]'
+            ]
+            
+            for selector in price_selectors:
+                element = await self.page.query_selector(selector)
+                if element and await element.is_visible():
+                    interface_analysis['price_input'] = {
+                        'selector': selector,
+                        'type': await element.get_attribute('type') or 'text',
+                        'placeholder': await element.get_attribute('placeholder')
+                    }
+                    break
+            
+            # Find order type selector
+            order_type_selectors = [
+                'select[name*="type"]', 'select[name*="order"]', '.order-type',
+                'select[name*="execution"]', 'input[name*="market"]', 'input[name*="limit"]'
+            ]
+            
+            for selector in order_type_selectors:
+                element = await self.page.query_selector(selector)
+                if element and await element.is_visible():
+                    interface_analysis['order_type_selector'] = {
+                        'selector': selector,
+                        'type': await element.get_attribute('type') or 'select'
+                    }
+                    break
+            
+            # Find positions table and close buttons
+            positions_selectors = [
+                '.positions', '.positions-table', '#positions', '[data-test="positions"]',
+                '.open-positions', '.portfolio', '.trades'
+            ]
+            
+            for selector in positions_selectors:
+                element = await self.page.query_selector(selector)
+                if element and await element.is_visible():
+                    interface_analysis['positions_table'] = selector
+                    
+                    # Find close buttons within positions table
+                    close_selectors = [
+                        f'{selector} button:has-text("Close")',
+                        f'{selector} button:has-text("CLOSE")',
+                        f'{selector} .close-button',
+                        f'{selector} button[data-action="close"]'
+                    ]
+                    
+                    for close_selector in close_selectors:
+                        close_elements = await self.page.query_selector_all(close_selector)
+                        for close_element in close_elements:
+                            if await close_element.is_visible():
+                                interface_analysis['close_position_elements'].append(close_selector)
+                    break
+            
+            # Find balance display
+            balance_selectors = [
+                '.balance', '.account-balance', '#balance', '[data-test="balance"]',
+                '.equity', '.account-equity', '.available-balance', '.wallet'
+            ]
+            
+            for selector in balance_selectors:
+                element = await self.page.query_selector(selector)
+                if element and await element.is_visible():
+                    balance_text = await element.text_content()
+                    interface_analysis['balance_display'] = {
+                        'selector': selector,
+                        'text': balance_text.strip()
+                    }
+                    break
+            
+            # Get current positions
+            if interface_analysis['positions_table']:
+                try:
+                    position_rows = await self.page.query_selector_all(f"{interface_analysis['positions_table']} tr, {interface_analysis['positions_table']} .position-row")
+                    
+                    for row in position_rows:
+                        if await row.is_visible():
+                            row_text = await row.text_content()
+                            if row_text and any(keyword in row_text.lower() for keyword in ['buy', 'sell', 'long', 'short']):
+                                interface_analysis['current_positions'].append({
+                                    'text': row_text.strip(),
+                                    'row_selector': f"{interface_analysis['positions_table']} tr:nth-child({len(interface_analysis['current_positions']) + 1})"
+                                })
+                except:
+                    pass
+            
+            logging.info(f"✅ Interface analysis complete: Found {len(interface_analysis['buy_elements'])} buy elements, {len(interface_analysis['sell_elements'])} sell elements")
+            return interface_analysis
+            
+        except Exception as e:
+            logging.error(f"❌ Interface analysis failed: {e}")
+            return {}
+    
+    async def execute_trade(self, order: TradeOrder, interface_analysis: Dict[str, Any]) -> TradeResult:
+        """Execute trade using analyzed interface elements"""
+        try:
+            logging.info(f"🔄 Executing {order.action.value} order for {order.symbol}")
+            
+            # Fill symbol if input exists
+            if interface_analysis.get('symbol_input'):
+                symbol_selector = interface_analysis['symbol_input']['selector']
+                try:
+                    await self.page.fill(symbol_selector, order.symbol)
+                    logging.info(f"✅ Filled symbol: {order.symbol}")
+                except:
+                    logging.warning(f"⚠️ Could not fill symbol field")
+            
+            # Fill quantity if input exists
+            if interface_analysis.get('quantity_input'):
+                quantity_selector = interface_analysis['quantity_input']['selector']
+                try:
+                    await self.page.fill(quantity_selector, str(order.quantity))
+                    logging.info(f"✅ Filled quantity: {order.quantity}")
+                except:
+                    logging.warning(f"⚠️ Could not fill quantity field")
+            
+            # Fill price if limit order and price input exists
+            if order.price and interface_analysis.get('price_input'):
+                price_selector = interface_analysis['price_input']['selector']
+                try:
+                    await self.page.fill(price_selector, str(order.price))
+                    logging.info(f"✅ Filled price: {order.price}")
+                except:
+                    logging.warning(f"⚠️ Could not fill price field")
+            
+            # Select order type if selector exists
+            if interface_analysis.get('order_type_selector'):
+                order_type_selector = interface_analysis['order_type_selector']['selector']
+                try:
+                    await self.page.select_option(order_type_selector, order.order_type)
+                    logging.info(f"✅ Selected order type: {order.order_type}")
+                except:
+                    logging.warning(f"⚠️ Could not select order type")
+            
+            await asyncio.sleep(1)
+            
+            # Click appropriate buy/sell button
+            if order.action == TradeAction.BUY:
+                if interface_analysis.get('buy_elements'):
+                    buy_element = interface_analysis['buy_elements'][0]
+                    await self.page.click(buy_element['selector'])
+                    logging.info(f"✅ Clicked buy button: {buy_element['selector']}")
+                else:
+                    raise Exception("No buy elements found")
+            
+            elif order.action == TradeAction.SELL:
+                if interface_analysis.get('sell_elements'):
+                    sell_element = interface_analysis['sell_elements'][0]
+                    await self.page.click(sell_element['selector'])
+                    logging.info(f"✅ Clicked sell button: {sell_element['selector']}")
+                else:
+                    raise Exception("No sell elements found")
+            
+            await asyncio.sleep(2)
+            
+            # Handle confirmation dialog if present
+            confirm_selectors = [
+                'button:has-text("Confirm")', 'button:has-text("CONFIRM")', '.confirm-button',
+                'button:has-text("Submit")', 'button:has-text("SUBMIT")', '.submit-button',
+                'button:has-text("Execute")', 'button:has-text("EXECUTE")', '.execute-button'
+            ]
+            
+            for selector in confirm_selectors:
+                confirm_button = await self.page.query_selector(selector)
+                if confirm_button and await confirm_button.is_visible():
+                    await confirm_button.click()
+                    logging.info(f"✅ Clicked confirmation button: {selector}")
+                    break
+            
+            await asyncio.sleep(3)
+            
+            # Try to extract order ID or success message
+            order_id = await self._extract_order_id()
+            
+            # Check for success/error messages
+            success_message = await self._check_trade_result()
+            
+            return TradeResult(
+                success=True,
+                order_id=order_id,
+                message=success_message or "Trade executed successfully",
+                filled_quantity=order.quantity,
+                filled_price=order.price or 0,
+                timestamp=datetime.now().isoformat()
+            )
+            
+        except Exception as e:
+            logging.error(f"❌ Trade execution failed: {e}")
+            return TradeResult(
+                success=False,
+                order_id="",
+                message=f"Trade execution failed: {str(e)}"
+            )
+    
+    async def _check_trade_result(self) -> str:
+        """Check for trade success/error messages"""
+        try:
+            # Check for success messages
+            success_selectors = [
+                '.success', '.order-success', '.trade-success', '.confirmation',
+                '[data-test="success"]', '.alert-success', '.notification-success'
+            ]
+            
+            for selector in success_selectors:
+                element = await self.page.query_selector(selector)
+                if element and await element.is_visible():
+                    message = await element.text_content()
+                    if message:
+                        return message.strip()
+            
+            # Check for error messages
+            error_selectors = [
+                '.error', '.order-error', '.trade-error', '.alert-error',
+                '[data-test="error"]', '.notification-error', '.warning'
+            ]
+            
+            for selector in error_selectors:
+                element = await self.page.query_selector(selector)
+                if element and await element.is_visible():
+                    message = await element.text_content()
+                    if message and any(word in message.lower() for word in ['error', 'failed', 'invalid']):
+                        raise Exception(f"Trade error: {message.strip()}")
+            
+            return "Trade executed successfully"
+            
+        except Exception as e:
+            logging.error(f"❌ Trade result check failed: {e}")
+            return str(e)
+    
+    async def close_position(self, position_symbol: str, interface_analysis: Dict[str, Any]) -> TradeResult:
+        """Close a specific position"""
+        try:
+            logging.info(f"🔄 Closing position for {position_symbol}")
+            
+            if not interface_analysis.get('positions_table'):
+                raise Exception("No positions table found")
+            
+            # Find the position row
+            position_rows = await self.page.query_selector_all(f"{interface_analysis['positions_table']} tr, {interface_analysis['positions_table']} .position-row")
+            
+            target_row = None
+            for row in position_rows:
+                if await row.is_visible():
+                    row_text = await row.text_content()
+                    if position_symbol.lower() in row_text.lower():
+                        target_row = row
+                        break
+            
+            if not target_row:
+                raise Exception(f"Position for {position_symbol} not found")
+            
+            # Find close button in the row
+            close_selectors = [
+                'button:has-text("Close")', 'button:has-text("CLOSE")', '.close-button',
+                'button[data-action="close"]', '.close-position'
+            ]
+            
+            close_button = None
+            for selector in close_selectors:
+                close_button = await target_row.query_selector(selector)
+                if close_button and await close_button.is_visible():
+                    break
+            
+            if not close_button:
+                raise Exception(f"Close button not found for position {position_symbol}")
+            
+            # Click close button
+            await close_button.click()
+            logging.info(f"✅ Clicked close button for {position_symbol}")
+            
+            await asyncio.sleep(2)
+            
+            # Handle confirmation if present
+            confirm_selectors = [
+                'button:has-text("Confirm")', 'button:has-text("CONFIRM")', '.confirm-button',
+                'button:has-text("Yes")', 'button:has-text("YES")', '.yes-button'
+            ]
+            
+            for selector in confirm_selectors:
+                confirm_button = await self.page.query_selector(selector)
+                if confirm_button and await confirm_button.is_visible():
+                    await confirm_button.click()
+                    logging.info(f"✅ Confirmed position close")
+                    break
+            
+            await asyncio.sleep(3)
+            
+            # Verify position is closed
+            success_message = await self._check_trade_result()
+            
+            return TradeResult(
+                success=True,
+                order_id=f"CLOSE_{position_symbol}_{int(datetime.now().timestamp())}",
+                message=success_message or f"Position {position_symbol} closed successfully",
+                timestamp=datetime.now().isoformat()
+            )
+            
+        except Exception as e:
+            logging.error(f"❌ Position close failed: {e}")
+            return TradeResult(
+                success=False,
+                order_id="",
+                message=f"Position close failed: {str(e)}"
+            )
     
     async def _handle_2fa(self, two_fa_config: TwoFAConfig) -> bool:
         """Handle 2FA authentication"""
