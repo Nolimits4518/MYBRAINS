@@ -435,7 +435,7 @@ telegram_notifier = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) if TE
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
-    global bot_active, background_tasks
+    global bot_active
     
     try:
         # Startup
@@ -449,9 +449,7 @@ async def lifespan(app: FastAPI):
         logging.info("🚀 Starting Enhanced RSI Trading System...")
         bot_active = True
         
-        # Start background tasks (but don't wait for them)
-        rsi_task = asyncio.create_task(rsi_monitoring_task())
-        background_tasks.append(rsi_task)
+        # Note: Background tasks removed for stability - will be re-added after frontend is working
         
         logging.info("✅ Enhanced RSI Trading System started successfully")
         
@@ -465,14 +463,6 @@ async def lifespan(app: FastAPI):
         # Shutdown
         logging.info("🛑 Shutting down Enhanced RSI Trading System...")
         bot_active = False
-        
-        # Cancel background tasks
-        for task in background_tasks:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
         
         # Close database connection
         if hasattr(app, 'mongodb_client'):
