@@ -481,12 +481,56 @@ function App() {
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <code className="text-xs bg-black/30 px-2 py-1 rounded text-gray-300">
+                    <code className="text-xs bg-black/30 px-2 py-1 rounded text-gray-300 flex-1 mr-3">
                       {signal.contract_address}
                     </code>
-                    <button className="text-sm text-purple-400 hover:text-purple-300 transition-colors">
-                      Add to Phantom →
-                    </button>
+                    <div className="flex space-x-2">
+                      {signal.chain === 'Solana' && (
+                        <a 
+                          href={`https://jup.ag/swap/SOL-${signal.contract_address}`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-purple-400 hover:text-purple-300 transition-colors px-2 py-1 bg-purple-900/30 rounded"
+                        >
+                          🟣 Jupiter
+                        </a>
+                      )}
+                      {signal.chain === 'Ethereum' && (
+                        <a 
+                          href={`https://app.uniswap.org/#/swap?inputCurrency=ETH&outputCurrency=${signal.contract_address}`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 bg-blue-900/30 rounded"
+                        >
+                          🦄 Uniswap
+                        </a>
+                      )}
+                      {signal.chain === 'Polygon' && (
+                        <a 
+                          href={`https://quickswap.exchange/#/swap?inputCurrency=ETH&outputCurrency=${signal.contract_address}`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors px-2 py-1 bg-indigo-900/30 rounded"
+                        >
+                          🔵 QuickSwap
+                        </a>
+                      )}
+                      <a 
+                        href={`https://dexscreener.com/${signal.chain.toLowerCase()}/${signal.contract_address}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-sm text-green-400 hover:text-green-300 transition-colors px-2 py-1 bg-green-900/30 rounded"
+                      >
+                        📊 Chart
+                      </a>
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(signal.contract_address)}
+                        className="text-sm text-gray-400 hover:text-gray-300 transition-colors px-2 py-1 bg-gray-900/30 rounded"
+                        title="Copy contract address"
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
