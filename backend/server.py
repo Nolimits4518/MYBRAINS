@@ -193,7 +193,7 @@ async def send_test_signal(chat_id: int):
         await bot.send_message(
             chat_id=chat_id,
             text=message,
-            parse_mode=ParseMode.MARKDOWN_V2
+            parse_mode=None  # Use plain text instead of MarkdownV2
         )
         
         global daily_signal_count
