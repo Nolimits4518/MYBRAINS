@@ -628,10 +628,13 @@ Note: Signals are automatically sent when high-potential opportunities are detec
         await send_signal_stats(chat_id)
 
 async def send_token_status(chat_id: int, contract_address: str):
-    """Send token status for /check command"""
+    """Send token status for /check command with purchase pathways"""
     try:
         # Analyze token (mock implementation)
         safety_metrics = await analyze_token_safety(contract_address, "Solana")
+        
+        # Get purchase pathways (assume Solana for demo)
+        purchase_info = get_purchase_pathways("Solana", contract_address)
         
         status_message = f"""📊 TOKEN STATUS
 
@@ -647,6 +650,13 @@ Contract: {contract_address}
 • Honeypot Risk: {'❌' if safety_metrics['honeypot_risk'] else '✅'}
 
 Overall Safety: {safety_metrics['safety_score']}/10
+
+🛒 HOW TO BUY
+{purchase_info['primary_dex']}
+{purchase_info['instructions']}
+
+🔗 USEFUL LINKS
+{purchase_info['links']}
 
 ⚠️ Always DYOR before investing!"""
         
