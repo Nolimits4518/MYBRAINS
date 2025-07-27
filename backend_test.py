@@ -205,7 +205,109 @@ class MemecoinBotTester:
             self.log_test("Send Weekly Report", False, f"Exception: {str(e)}")
             return False
 
-    def test_database_integration(self):
+    def test_enhanced_signal_format(self):
+        """Test that signals contain enhanced purchase pathway information"""
+        try:
+            success, signals = self.test_signals_endpoint()
+            if not success or not signals:
+                self.log_test("Enhanced Signal Format", False, "No signals to test")
+                return False
+            
+            # Check the most recent signal for enhanced format
+            latest_signal = signals[0]
+            required_fields = ['name', 'symbol', 'chain', 'contract_address', 'market_cap', 
+                             'liquidity', 'safety_score', 'profit_potential', 'social_score']
+            
+            missing_fields = []
+            for field in required_fields:
+                if field not in latest_signal:
+                    missing_fields.append(field)
+            
+            if missing_fields:
+                self.log_test("Enhanced Signal Format", False, f"Missing fields: {missing_fields}")
+                return False
+            
+            # Check if signal has proper chain-specific data
+            chain = latest_signal.get('chain', '').lower()
+            if chain in ['solana', 'ethereum', 'polygon']:
+                self.log_test("Enhanced Signal Format", True, 
+                            f"Signal has all required fields for {latest_signal['chain']} chain")
+                return True
+            else:
+                self.log_test("Enhanced Signal Format", False, f"Unknown chain: {chain}")
+                return False
+                
+        except Exception as e:
+            self.log_test("Enhanced Signal Format", False, f"Exception: {str(e)}")
+            return False
+
+    def test_scan_status_endpoint(self):
+        """Test /api/scan-status endpoint"""
+        try:
+            response = requests.get(f"{self.base_url}/api/scan-status", timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                required_fields = ['active', 'interval_minutes', 'mode', 'scans_today', 'signals_today']
+                missing_fields = []
+                
+                for field in required_fields:
+                    if field not in data:
+                        missing_fields.append(field)
+                
+                if missing_fields:
+                    self.log_test("Scan Status", False, f"Missing fields: {missing_fields}")
+                    return False
+                else:
+                    self.log_test("Scan Status", True, 
+                                f"Mode: {data['mode']}, Interval: {data['interval_minutes']}m, "
+                                f"Signals today: {data['signals_today']}")
+                    return True
+            else:
+                self.log_test("Scan Status", False, f"HTTP {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_test("Scan Status", False, f"Exception: {str(e)}")
+            return False
+
+    def test_update_scan_settings(self):
+        """Test /api/update-scan-settings endpoint"""
+        try:
+            test_settings = {
+                "interval_minutes": 30,
+                "mode": "normal",
+                "chat_id": 123456789
+            }
+            
+            response = requests.post(
+                f"{self.base_url}/api/update-scan-settings",
+                json=test_settings,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    self.log_test("Update Scan Settings", True, "Settings updated successfully")
+                    return True
+                else:
+                    self.log_test("Update Scan Settings", False, "Invalid response format")
+                    return False
+            else:
+                error_detail = "Unknown error"
+                try:
+                    error_data = response.json()
+                    error_detail = error_data.get("detail", "Unknown error")
+                except:
+                    pass
+                self.log_test("Update Scan Settings", False, f"HTTP {response.status_code}: {error_detail}")
+                return False
+                
+        except Exception as e:
+            self.log_test("Update Scan Settings", False, f"Exception: {str(e)}")
+            return False
         """Test database integration by checking if signals persist"""
         print("\n🔍 Testing Database Integration...")
         
