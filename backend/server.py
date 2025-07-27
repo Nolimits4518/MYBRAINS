@@ -367,32 +367,30 @@ async def send_weekly_report(chat_id: int):
         "timestamp": {"$gte": week_ago}
     }).to_list(100)
     
-    report_message = f"""
-📊 *WEEKLY REPORT* 
-_{datetime.utcnow().strftime('%B %d, %Y')}_
+    report_message = f"""📊 WEEKLY REPORT 
+{datetime.utcnow().strftime('%B %d, %Y')}
 
-*This Week's Performance:*
+This Week's Performance:
 • Signals Sent: {len(weekly_signals)}
-• Avg Safety Score: 8\\.2/10
-• Avg Profit Potential: 7\\.8/10
-• Success Rate: 74% \\(mock\\)
+• Avg Safety Score: 8.2/10
+• Avg Profit Potential: 7.8/10
+• Success Rate: 74% (mock)
 
-*Top Chains:*
+Top Chains:
 • Solana: {len([s for s in weekly_signals if s.get('chain') == 'Solana'])} signals
 • Ethereum: {len([s for s in weekly_signals if s.get('chain') == 'Ethereum'])} signals
 
-*Risk Management:*
+Risk Management:
 ✅ All signals had revoked mint authority
-✅ 95% had locked liquidity \\> 6 months  
-✅ Avg top holder concentration: 12\\.3%
+✅ 95% had locked liquidity > 6 months  
+✅ Avg top holder concentration: 12.3%
 
-_Next week: Adding Sui blockchain monitoring_
-"""
+Next week: Adding Sui blockchain monitoring"""
     
     await bot.send_message(
         chat_id=chat_id,
-        text=escape_markdown_v2(report_message),
-        parse_mode=ParseMode.MARKDOWN_V2
+        text=report_message,
+        parse_mode=None
     )
     
     return {"status": "report_sent"}
