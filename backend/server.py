@@ -115,26 +115,26 @@ async def get_social_sentiment(token_name: str) -> float:
 
 def format_signal_message(signal: TokenSignal) -> str:
     """Format signal for Telegram"""
-    message = f"""
-🚨 *MEMECOIN SIGNAL* 🚨
+    # Use plain text template to avoid MarkdownV2 complexity
+    message = f"""🚨 MEMECOIN SIGNAL 🚨
 
-*Token:* {signal.name} \\(${signal.symbol}\\)
-*Chain:* {signal.chain}
-*Contract:* `{signal.contract_address}`
+Token: {signal.name} (${signal.symbol})
+Chain: {signal.chain}
+Contract: {signal.contract_address}
 
-📊 *METRICS*
+📊 METRICS
 • Market Cap: ${signal.market_cap:,.0f}
 • Liquidity: ${signal.liquidity:,.0f}
 • Safety Score: {signal.safety_score}/10 ⭐
 • Profit Potential: {signal.profit_potential}/10 📈
 • Social Score: {signal.social_score}/10 💬
 
-⚠️ *High\\-risk investment\\. DYOR and only invest what you can afford to lose\\.*
+⚠️ High-risk investment. DYOR and only invest what you can afford to lose.
 
-*Add to Phantom:* Copy contract address above
-*Time:* {signal.timestamp.strftime('%H:%M UTC')}
-"""
-    return escape_markdown_v2(message)
+Add to Phantom: Copy contract address above
+Time: {signal.timestamp.strftime('%H:%M UTC')}"""
+    
+    return message
 
 # API Routes
 @app.get("/api/health")
