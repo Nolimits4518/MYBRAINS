@@ -282,12 +282,11 @@ async def send_token_status(chat_id: int, contract_address: str):
         # Analyze token (mock implementation)
         safety_metrics = await analyze_token_safety(contract_address, "Solana")
         
-        status_message = f"""
-📊 *TOKEN STATUS*
+        status_message = f"""📊 TOKEN STATUS
 
-*Contract:* `{contract_address}`
+Contract: {contract_address}
 
-🛡️ *SAFETY METRICS*
+🛡️ SAFETY METRICS
 • Mint Authority: {'✅' if safety_metrics['mint_authority_revoked'] else '❌'}
 • Freeze Authority: {'✅' if safety_metrics['freeze_authority_revoked'] else '❌'}
 • Liquidity Locked: {'✅' if safety_metrics['liquidity_locked'] else '❌'}
@@ -296,22 +295,21 @@ async def send_token_status(chat_id: int, contract_address: str):
 • Contract Verified: {'✅' if safety_metrics['contract_verified'] else '❌'}
 • Honeypot Risk: {'❌' if safety_metrics['honeypot_risk'] else '✅'}
 
-*Overall Safety: {safety_metrics['safety_score']}/10*
+Overall Safety: {safety_metrics['safety_score']}/10
 
-⚠️ *Always DYOR before investing\\!*
-"""
+⚠️ Always DYOR before investing!"""
         
         await bot.send_message(
             chat_id=chat_id,
-            text=escape_markdown_v2(status_message),
-            parse_mode=ParseMode.MARKDOWN_V2
+            text=status_message,
+            parse_mode=None
         )
         
     except Exception as e:
         await bot.send_message(
             chat_id=chat_id,
             text=f"Error checking token: {str(e)}",
-            parse_mode=ParseMode.MARKDOWN_V2
+            parse_mode=None
         )
 
 async def send_signal_stats(chat_id: int):
