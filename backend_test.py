@@ -432,6 +432,7 @@ class MemecoinBotTester:
         # Test enhanced signal format
         print("\n🔍 Testing Enhanced Signal Format...")
         self.test_enhanced_signal_format()
+        self.test_telegram_check_command_format()
         
         # Test functionality endpoints
         print("\n🤖 Testing Bot Functionality...")
