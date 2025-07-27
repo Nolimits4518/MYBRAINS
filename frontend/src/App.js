@@ -577,6 +577,88 @@ function App() {
           </div>
         </div>
 
+        {/* Purchase Guide Section */}
+        <div className="mt-12 bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 overflow-hidden">
+          <div className="px-6 py-4 border-b border-white/20">
+            <h2 className="text-2xl font-bold text-white">🛒 Phantom Wallet Purchase Guide</h2>
+            <p className="text-gray-300">Step-by-step instructions for buying tokens through Phantom wallet</p>
+          </div>
+
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Solana Guide */}
+              <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-400/20">
+                <div className="flex items-center mb-3">
+                  <span className="text-2xl mr-2">🟣</span>
+                  <h3 className="text-lg font-semibold text-white">Solana Tokens</h3>
+                </div>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <p><strong>Recommended DEX:</strong> Jupiter Exchange</p>
+                  <p><strong>Steps:</strong></p>
+                  <ol className="list-decimal list-inside space-y-1 ml-4">
+                    <li>Open Phantom → Swap tab</li>
+                    <li>Set: SOL → Custom Token</li>
+                    <li>Paste contract address</li>
+                    <li>Set slippage: 10-15%</li>
+                    <li>Review & Swap</li>
+                  </ol>
+                  <div className="mt-3 space-y-1">
+                    <a href="https://jup.ag" target="_blank" rel="noopener noreferrer" className="block text-purple-400 hover:text-purple-300 transition-colors">🔗 jup.ag</a>
+                    <a href="https://raydium.io" target="_blank" rel="noopener noreferrer" className="block text-purple-400 hover:text-purple-300 transition-colors">🔗 raydium.io</a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ethereum Guide */}
+              <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-400/20">
+                <div className="flex items-center mb-3">
+                  <span className="text-2xl mr-2">🦄</span>
+                  <h3 className="text-lg font-semibold text-white">Ethereum Tokens</h3>
+                </div>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <p><strong>Recommended DEX:</strong> Uniswap V3</p>
+                  <p><strong>Steps:</strong></p>
+                  <ol className="list-decimal list-inside space-y-1 ml-4">
+                    <li>Open Phantom → Browser</li>
+                    <li>Go to Uniswap & Connect</li>
+                    <li>Set: ETH → Custom Token</li>
+                    <li>Paste contract address</li>
+                    <li>Set slippage: 5-12%</li>
+                    <li>Approve & Swap</li>
+                  </ol>
+                  <div className="mt-3 space-y-1">
+                    <a href="https://app.uniswap.org" target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:text-blue-300 transition-colors">🔗 app.uniswap.org</a>
+                    <a href="https://app.1inch.io" target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:text-blue-300 transition-colors">🔗 app.1inch.io</a>
+                  </div>
+                </div>
+              </div>
+
+              {/* General Safety */}
+              <div className="bg-red-500/10 rounded-lg p-4 border border-red-400/20">
+                <div className="flex items-center mb-3">
+                  <span className="text-2xl mr-2">⚠️</span>
+                  <h3 className="text-lg font-semibold text-white">Safety Tips</h3>
+                </div>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <p><strong>Always Remember:</strong></p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Set appropriate slippage (5-15%)</li>
+                    <li>Keep extra SOL/ETH for gas</li>
+                    <li>Start with small test amounts</li>
+                    <li>Set profit targets (2x, 5x, 10x)</li>
+                    <li>Never invest more than you can lose</li>
+                    <li>Check contract on DEX Screener</li>
+                  </ul>
+                  <div className="mt-3 space-y-1">
+                    <a href="https://dexscreener.com" target="_blank" rel="noopener noreferrer" className="block text-green-400 hover:text-green-300 transition-colors">🔗 dexscreener.com</a>
+                    <a href="https://rugcheck.xyz" target="_blank" rel="noopener noreferrer" className="block text-red-400 hover:text-red-300 transition-colors">🔗 rugcheck.xyz</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Telegram Commands */}
         <div className="mt-12 bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
           <h3 className="text-xl font-semibold text-white mb-4">Telegram Bot Commands</h3>
