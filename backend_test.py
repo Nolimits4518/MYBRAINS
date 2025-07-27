@@ -353,10 +353,16 @@ class MemecoinBotTester:
         self.test_health_endpoint()
         self.test_telegram_connection()
         self.test_signals_endpoint()
+        self.test_scan_status_endpoint()
+        
+        # Test enhanced signal format
+        print("\n🔍 Testing Enhanced Signal Format...")
+        self.test_enhanced_signal_format()
         
         # Test functionality endpoints
         print("\n🤖 Testing Bot Functionality...")
         self.test_send_test_signal()
+        self.test_update_scan_settings()
         self.test_start_monitoring()
         self.test_weekly_report()
         
@@ -377,6 +383,14 @@ class MemecoinBotTester:
         if failed_tests:
             print("\n❌ FAILED TESTS:")
             for test in failed_tests:
+                print(f"  • {test['name']}: {test['details']}")
+        
+        # Show passed tests for enhanced features
+        enhanced_tests = [test for test in self.test_results if test["success"] and 
+                         ("Enhanced" in test["name"] or "Format" in test["name"])]
+        if enhanced_tests:
+            print("\n✅ ENHANCED FEATURES WORKING:")
+            for test in enhanced_tests:
                 print(f"  • {test['name']}: {test['details']}")
         
         # Return success status
