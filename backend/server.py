@@ -371,7 +371,6 @@ async def monitor_memecoins():
         raise
     except Exception as e:
         print(f"❌ Error in monitoring: {str(e)}")
-        global monitoring_active
         monitoring_active = False
 
 async def simulate_scan_based_on_mode(mode: str) -> int:
