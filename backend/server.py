@@ -13,6 +13,7 @@ import aiohttp
 import json
 from dotenv import load_dotenv
 import time
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -31,6 +32,17 @@ app.add_middleware(
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 bot = Bot(token=TELEGRAM_TOKEN)
 
+# Global monitoring state
+monitoring_task = None
+monitoring_active = False
+current_scan_settings = {
+    "interval_minutes": 15,  # Default 15 minutes
+    "mode": "normal",
+    "last_scan": None,
+    "next_scan": None,
+    "scans_today": 0
+}
+
 # MongoDB setup
 @app.on_event("startup")
 async def startup_db_client():
@@ -39,9 +51,17 @@ async def startup_db_client():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global monitoring_task
+    if monitoring_task:
+        monitoring_task.cancel()
     app.mongodb_client.close()
 
-# Models
+# Pydantic models
+class ScanSettings(BaseModel):
+    interval_minutes: int
+    mode: str
+    chat_id: Optional[int] = None
+
 class TokenSignal:
     def __init__(self, contract_address: str, name: str, symbol: str, chain: str, 
                  market_cap: float, liquidity: float, safety_score: float, 
@@ -82,6 +102,7 @@ async def check_daily_limit():
     if current_date != last_reset_date:
         daily_signal_count = 0
         last_reset_date = current_date
+        current_scan_settings["scans_today"] = 0
     
     return daily_signal_count < 5
 
@@ -149,6 +170,70 @@ async def get_signals():
         signal["_id"] = str(signal["_id"])
     return {"signals": signals, "count": len(signals)}
 
+@app.get("/api/scan-status")
+async def get_scan_status():
+    """Get current scanning status and settings"""
+    global current_scan_settings, monitoring_active
+    
+    status = {
+        "active": monitoring_active,
+        "interval_minutes": current_scan_settings["interval_minutes"],
+        "mode": current_scan_settings["mode"],
+        "last_scan": current_scan_settings["last_scan"],
+        "next_scan": current_scan_settings["next_scan"],
+        "scans_today": current_scan_settings["scans_today"],
+        "signals_today": daily_signal_count
+    }
+    
+    return status
+
+@app.post("/api/update-scan-settings")
+async def update_scan_settings(settings: ScanSettings):
+    """Update scanning interval and mode"""
+    global current_scan_settings, monitoring_task, monitoring_active
+    
+    # Validate interval (between 1 minute and 6 hours)
+    if not (1 <= settings.interval_minutes <= 360):
+        raise HTTPException(status_code=400, detail="Interval must be between 1 and 360 minutes")
+    
+    # Validate mode
+    valid_modes = ["aggressive", "normal", "conservative"]
+    if settings.mode not in valid_modes:
+        raise HTTPException(status_code=400, detail=f"Mode must be one of: {valid_modes}")
+    
+    # Update settings
+    current_scan_settings["interval_minutes"] = settings.interval_minutes
+    current_scan_settings["mode"] = settings.mode
+    
+    # Calculate next scan time
+    if current_scan_settings["last_scan"]:
+        last_scan = datetime.fromisoformat(current_scan_settings["last_scan"])
+        current_scan_settings["next_scan"] = (last_scan + timedelta(minutes=settings.interval_minutes)).isoformat()
+    
+    # Store in database
+    await app.mongodb.scan_settings.update_one(
+        {"_id": "current"},
+        {"$set": {
+            "interval_minutes": settings.interval_minutes,
+            "mode": settings.mode,
+            "updated_at": datetime.utcnow(),
+            "chat_id": settings.chat_id
+        }},
+        upsert=True
+    )
+    
+    # Restart monitoring if it was active
+    if monitoring_active:
+        if monitoring_task:
+            monitoring_task.cancel()
+        monitoring_task = asyncio.create_task(monitor_memecoins())
+    
+    return {
+        "status": "success", 
+        "message": f"Scan settings updated: {settings.mode} mode, {settings.interval_minutes} minute intervals",
+        "settings": current_scan_settings
+    }
+
 @app.post("/api/send-test-signal")
 async def send_test_signal(chat_id: int):
     """Send a test signal to verify Telegram integration"""
@@ -182,7 +267,8 @@ async def send_test_signal(chat_id: int):
         "social_score": test_signal.social_score,
         "timestamp": test_signal.timestamp,
         "status": test_signal.status,
-        "chat_id": chat_id
+        "chat_id": chat_id,
+        "type": "test_signal"
     }
     
     await app.mongodb.signals.insert_one(signal_data)
@@ -213,6 +299,176 @@ async def send_test_signal(chat_id: int):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send signal: {str(e)}")
+
+@app.post("/api/start-monitoring")
+async def start_monitoring(background_tasks: BackgroundTasks):
+    """Start the memecoin monitoring system"""
+    global monitoring_task, monitoring_active
+    
+    if not monitoring_active:
+        monitoring_active = True
+        monitoring_task = asyncio.create_task(monitor_memecoins())
+        return {"status": "monitoring_started", "settings": current_scan_settings}
+    else:
+        return {"status": "monitoring_already_active", "settings": current_scan_settings}
+
+@app.post("/api/stop-monitoring")
+async def stop_monitoring():
+    """Stop the memecoin monitoring system"""
+    global monitoring_task, monitoring_active
+    
+    if monitoring_active:
+        monitoring_active = False
+        if monitoring_task:
+            monitoring_task.cancel()
+            monitoring_task = None
+        return {"status": "monitoring_stopped"}
+    else:
+        return {"status": "monitoring_not_active"}
+
+async def monitor_memecoins():
+    """Background task to monitor for new memecoin opportunities"""
+    global current_scan_settings, daily_signal_count
+    
+    print(f"🔍 Memecoin monitoring started - {current_scan_settings['mode']} mode, {current_scan_settings['interval_minutes']} min intervals")
+    
+    try:
+        while monitoring_active:
+            scan_start = datetime.utcnow()
+            current_scan_settings["last_scan"] = scan_start.isoformat()
+            current_scan_settings["scans_today"] += 1
+            
+            print(f"🔎 Scanning for opportunities... (Scan #{current_scan_settings['scans_today']})")
+            
+            # Mock scanning logic - in real implementation this would:
+            # 1. Query blockchain explorers for new tokens
+            # 2. Check social media for mentions
+            # 3. Analyze safety metrics
+            # 4. Score profit potential
+            
+            # Simulate finding opportunities based on mode
+            opportunities_found = await simulate_scan_based_on_mode(current_scan_settings["mode"])
+            
+            if opportunities_found > 0:
+                print(f"📈 Found {opportunities_found} potential opportunities")
+                
+                # For demo purposes, create a signal if we found something and haven't hit daily limit
+                if await check_daily_limit() and opportunities_found > 0:
+                    await create_auto_signal()
+            
+            # Calculate next scan time
+            next_scan = scan_start + timedelta(minutes=current_scan_settings["interval_minutes"])
+            current_scan_settings["next_scan"] = next_scan.isoformat()
+            
+            print(f"⏰ Next scan in {current_scan_settings['interval_minutes']} minutes at {next_scan.strftime('%H:%M:%S')}")
+            
+            # Wait for the next scan interval
+            await asyncio.sleep(current_scan_settings["interval_minutes"] * 60)
+            
+    except asyncio.CancelledError:
+        print("🛑 Monitoring stopped")
+        current_scan_settings["next_scan"] = None
+        raise
+    except Exception as e:
+        print(f"❌ Error in monitoring: {str(e)}")
+        global monitoring_active
+        monitoring_active = False
+
+async def simulate_scan_based_on_mode(mode: str) -> int:
+    """Simulate scanning results based on mode"""
+    import random
+    
+    # Different modes have different chances of finding opportunities
+    if mode == "aggressive":
+        # More frequent but potentially noisier signals
+        return random.choices([0, 1, 2, 3], weights=[30, 40, 20, 10])[0]
+    elif mode == "normal":
+        # Balanced approach
+        return random.choices([0, 1, 2], weights=[50, 35, 15])[0]
+    elif mode == "conservative":
+        # Fewer but higher quality signals
+        return random.choices([0, 1], weights=[70, 30])[0]
+    
+    return 0
+
+async def create_auto_signal():
+    """Create an automatic signal from monitoring"""
+    global daily_signal_count
+    
+    # Get stored chat ID from scan settings
+    scan_config = await app.mongodb.scan_settings.find_one({"_id": "current"})
+    if not scan_config or not scan_config.get("chat_id"):
+        print("⚠️ No chat ID configured for auto signals")
+        return
+    
+    chat_id = scan_config["chat_id"]
+    
+    # Generate a realistic-looking signal
+    import random
+    
+    token_names = ["ShibaAI", "DogeCoin2.0", "MoonSafe", "SafeRocket", "PepeCoin", "FlokiV2"]
+    chains = ["Solana", "Ethereum", "Polygon"]
+    
+    selected_name = random.choice(token_names)
+    selected_chain = random.choice(chains)
+    
+    auto_signal = TokenSignal(
+        contract_address=f"{''.join(random.choices('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz', k=44))}",
+        name=selected_name,
+        symbol=selected_name.upper()[:8],
+        chain=selected_chain,
+        market_cap=random.randint(50000, 800000),
+        liquidity=random.randint(20000, 200000),
+        safety_score=round(random.uniform(6.5, 9.5), 1),
+        profit_potential=round(random.uniform(6.0, 9.0), 1),
+        social_score=round(random.uniform(5.5, 8.5), 1)
+    )
+    
+    # Store in database
+    signal_data = {
+        "id": auto_signal.id,
+        "contract_address": auto_signal.contract_address,
+        "name": auto_signal.name,
+        "symbol": auto_signal.symbol,
+        "chain": auto_signal.chain,
+        "market_cap": auto_signal.market_cap,
+        "liquidity": auto_signal.liquidity,
+        "safety_score": auto_signal.safety_score,
+        "profit_potential": auto_signal.profit_potential,
+        "social_score": auto_signal.social_score,
+        "timestamp": auto_signal.timestamp,
+        "status": auto_signal.status,
+        "chat_id": chat_id,
+        "type": "auto_signal"
+    }
+    
+    await app.mongodb.signals.insert_one(signal_data)
+    
+    # Send to Telegram
+    try:
+        message = format_signal_message(auto_signal)
+        await bot.send_message(
+            chat_id=chat_id,
+            text=message,
+            parse_mode=None
+        )
+        
+        daily_signal_count += 1
+        
+        # Log successful send
+        await app.mongodb.messages.insert_one({
+            "chat_id": chat_id,
+            "signal_id": auto_signal.id,
+            "message": message,
+            "timestamp": datetime.utcnow(),
+            "status": "sent",
+            "type": "auto_signal"
+        })
+        
+        print(f"📤 Auto signal sent: {auto_signal.name} ({auto_signal.symbol})")
+        
+    except Exception as e:
+        print(f"❌ Failed to send auto signal: {str(e)}")
 
 @app.post("/api/webhook/{secret}")
 async def telegram_webhook(secret: str, request: Request):
@@ -255,7 +511,7 @@ async def handle_telegram_message(message):
             await bot.send_message(
                 chat_id=chat_id,
                 text="Usage: /check [contract_address]",
-                parse_mode=ParseMode.MARKDOWN_V2
+                parse_mode=None
             )
     
     elif text.startswith('/help'):
@@ -320,12 +576,23 @@ async def send_signal_stats(chat_id: int):
         "timestamp": {"$gte": datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)}
     })
     
+    # Get current scan status
+    scan_status = "Active" if monitoring_active else "Inactive"
+    scan_mode = current_scan_settings["mode"].title()
+    scan_interval = current_scan_settings["interval_minutes"]
+    
     stats_message = f"""📈 SIGNAL STATISTICS
 
 Today: {today_signals}/5 signals sent
 Total Signals: {total_signals}
 Success Rate: 72% (mock data)
 Avg Profit: +145% (mock data)
+
+🔍 SCANNING STATUS
+Status: {scan_status}
+Mode: {scan_mode}
+Interval: {scan_interval} minutes
+Scans Today: {current_scan_settings['scans_today']}
 
 Top Performing Chains:
 • Solana: 45% of signals
@@ -340,23 +607,6 @@ Statistics updated in real-time"""
         parse_mode=None
     )
 
-# Background monitoring (mock implementation)
-@app.post("/api/start-monitoring")
-async def start_monitoring(background_tasks: BackgroundTasks):
-    """Start the memecoin monitoring system"""
-    background_tasks.add_task(monitor_memecoins)
-    return {"status": "monitoring_started"}
-
-async def monitor_memecoins():
-    """Background task to monitor for new memecoin opportunities"""
-    # This would be the core monitoring logic
-    # For now, it's a placeholder that would integrate with:
-    # - Blockchain explorers (SolanaFM, Etherscan)
-    # - DEX APIs (Raydium, Jupiter, Uniswap)
-    # - Social media APIs (Twitter, Reddit)
-    # - Analytics APIs (DEX Screener, RugCheck)
-    print("🔍 Memecoin monitoring started...")
-    
 # Weekly report generation
 @app.post("/api/send-weekly-report")
 async def send_weekly_report(chat_id: int):
