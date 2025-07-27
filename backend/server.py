@@ -135,8 +135,11 @@ async def get_social_sentiment(token_name: str) -> float:
     return 6.9  # out of 10
 
 def format_signal_message(signal: TokenSignal) -> str:
-    """Format signal for Telegram"""
-    # Use plain text template to avoid MarkdownV2 complexity
+    """Format signal for Telegram with purchase pathways"""
+    
+    # Get chain-specific purchase recommendations
+    purchase_info = get_purchase_pathways(signal.chain, signal.contract_address)
+    
     message = f"""🚨 MEMECOIN SIGNAL 🚨
 
 Token: {signal.name} (${signal.symbol})
@@ -150,12 +153,105 @@ Contract: {signal.contract_address}
 • Profit Potential: {signal.profit_potential}/10 📈
 • Social Score: {signal.social_score}/10 💬
 
+🛒 PURCHASE PATHWAYS
+
+{purchase_info['primary_dex']}
+{purchase_info['instructions']}
+
+🔗 QUICK LINKS
+{purchase_info['links']}
+
+💡 PHANTOM WALLET SETUP
+{purchase_info['phantom_steps']}
+
+⚠️ TRADING SAFETY
+• Slippage: Set 5-15% for new tokens
+• Gas Fees: Have extra {purchase_info['gas_token']} for fees
+• Max Investment: Only risk what you can afford to lose
+• Exit Strategy: Set profit targets (2x, 5x, 10x)
+
 ⚠️ High-risk investment. DYOR and only invest what you can afford to lose.
 
-Add to Phantom: Copy contract address above
-Time: {signal.timestamp.strftime('%H:%M UTC')}"""
+Time: {signal.timestamp.strftime('%H:%M UTC')} | Valid for: 1 hour"""
     
     return message
+
+def get_purchase_pathways(chain: str, contract_address: str) -> dict:
+    """Get chain-specific purchase pathways and recommendations"""
+    
+    if chain.lower() == "solana":
+        return {
+            "primary_dex": "🟣 PRIMARY: Jupiter Exchange (Best rates)",
+            "instructions": """1. Open Phantom wallet → Swap tab
+2. Set: SOL → Custom Token
+3. Paste contract: {0}
+4. Set slippage: 10-15%
+5. Review & Swap""".format(contract_address),
+            "links": """• Jupiter: jup.ag
+• Raydium: raydium.io
+• Orca: orca.so
+• DEX Screener: dexscreener.com/solana/{0}""".format(contract_address),
+            "phantom_steps": """• Add token: Settings → Manage Token List → Add Custom
+• Track price: Add to Watchlist
+• Set alerts: Portfolio → Price Alerts""",
+            "gas_token": "SOL"
+        }
+    
+    elif chain.lower() == "ethereum":
+        return {
+            "primary_dex": "🦄 PRIMARY: Uniswap V3 (Most liquid)",
+            "instructions": """1. Open Phantom wallet → Browser → Uniswap
+2. Connect wallet
+3. Set: ETH → Custom Token
+4. Paste contract: {0}
+5. Set slippage: 5-12%
+6. Approve & Swap""".format(contract_address),
+            "links": """• Uniswap: app.uniswap.org
+• SushiSwap: sushi.com
+• 1inch: app.1inch.io
+• DEX Screener: dexscreener.com/ethereum/{0}
+• Etherscan: etherscan.io/token/{0}""".format(contract_address, contract_address),
+            "phantom_steps": """• Import token: Add Custom Token
+• Network: Ensure Ethereum mainnet
+• Track: Add to Portfolio""",
+            "gas_token": "ETH"
+        }
+    
+    elif chain.lower() == "polygon":
+        return {
+            "primary_dex": "🔵 PRIMARY: QuickSwap (Low fees)",
+            "instructions": """1. Open Phantom → Switch to Polygon network
+2. Bridge MATIC if needed
+3. Go to QuickSwap
+4. Set: MATIC → Custom Token
+5. Paste contract: {0}
+6. Set slippage: 8-15%
+7. Swap""".format(contract_address),
+            "links": """• QuickSwap: quickswap.exchange
+• SushiSwap: sushi.com
+• ParaSwap: paraswap.io
+• DEX Screener: dexscreener.com/polygon/{0}
+• PolygonScan: polygonscan.com/token/{0}""".format(contract_address, contract_address),
+            "phantom_steps": """• Network: Switch to Polygon
+• Bridge: Use Phantom's built-in bridge
+• Import: Add custom token with contract""",
+            "gas_token": "MATIC"
+        }
+    
+    else:
+        return {
+            "primary_dex": f"🔗 Check DEX Screener for {chain} DEXs",
+            "instructions": """1. Open Phantom wallet
+2. Switch to correct network
+3. Find appropriate DEX
+4. Import custom token
+5. Set appropriate slippage""",
+            "links": f"• DEX Screener: dexscreener.com",
+            "phantom_steps": """• Verify network compatibility
+• Add custom token manually
+• Check official DEX recommendations""",
+            "gas_token": "native token"
+        }
 
 # API Routes
 @app.get("/api/health")
