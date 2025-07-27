@@ -259,19 +259,18 @@ async def handle_telegram_message(message):
             )
     
     elif text.startswith('/help'):
-        help_text = """
-*Memecoin Signal Bot Commands:*
+        help_text = """Memecoin Signal Bot Commands:
 
-/check \\[contract\\_address\\] \\- Get token status
-/stats \\- View signal statistics  
-/help \\- Show this help
+/check [contract_address] - Get token status
+/stats - View signal statistics  
+/help - Show this help
 
-*Note:* Signals are automatically sent when high\\-potential opportunities are detected\\. Max 5 signals per day\\.
-"""
+Note: Signals are automatically sent when high-potential opportunities are detected. Max 5 signals per day."""
+        
         await bot.send_message(
             chat_id=chat_id,
             text=help_text,
-            parse_mode=ParseMode.MARKDOWN_V2
+            parse_mode=None
         )
     
     elif text.startswith('/stats'):
