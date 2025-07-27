@@ -66,9 +66,12 @@ last_reset_date = datetime.utcnow().date()
 # Utility functions
 def escape_markdown_v2(text: str) -> str:
     """Escape special characters for MarkdownV2"""
-    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
-    for char in special_chars:
+    # Characters that need escaping in MarkdownV2
+    escape_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    
+    for char in escape_chars:
         text = text.replace(char, f'\\{char}')
+    
     return text
 
 async def check_daily_limit():
