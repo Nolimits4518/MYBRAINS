@@ -320,26 +320,24 @@ async def send_signal_stats(chat_id: int):
         "timestamp": {"$gte": datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)}
     })
     
-    stats_message = f"""
-📈 *SIGNAL STATISTICS*
+    stats_message = f"""📈 SIGNAL STATISTICS
 
-*Today:* {today_signals}/5 signals sent
-*Total Signals:* {total_signals}
-*Success Rate:* 72% \\(mock data\\)
-*Avg Profit:* \\+145% \\(mock data\\)
+Today: {today_signals}/5 signals sent
+Total Signals: {total_signals}
+Success Rate: 72% (mock data)
+Avg Profit: +145% (mock data)
 
-*Top Performing Chains:*
+Top Performing Chains:
 • Solana: 45% of signals
 • Ethereum: 35% of signals
 • Others: 20% of signals
 
-_Statistics updated in real\\-time_
-"""
+Statistics updated in real-time"""
     
     await bot.send_message(
         chat_id=chat_id,
-        text=escape_markdown_v2(stats_message),
-        parse_mode=ParseMode.MARKDOWN_V2
+        text=stats_message,
+        parse_mode=None
     )
 
 # Background monitoring (mock implementation)
