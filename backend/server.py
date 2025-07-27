@@ -328,7 +328,7 @@ async def stop_monitoring():
 
 async def monitor_memecoins():
     """Background task to monitor for new memecoin opportunities"""
-    global current_scan_settings, daily_signal_count
+    global current_scan_settings, daily_signal_count, monitoring_active
     
     print(f"🔍 Memecoin monitoring started - {current_scan_settings['mode']} mode, {current_scan_settings['interval_minutes']} min intervals")
     
