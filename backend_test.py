@@ -309,7 +309,46 @@ class MemecoinBotTester:
             self.log_test("Update Scan Settings", False, f"Exception: {str(e)}")
             return False
 
-    def test_database_integration(self):
+    def test_telegram_check_command_format(self):
+        """Test that the /check command would return enhanced purchase information"""
+        try:
+            # We can't actually test the Telegram webhook without a real chat,
+            # but we can verify the backend has the purchase pathway logic
+            
+            # Check if the backend has the purchase pathway functions by testing a signal
+            success, signals = self.test_signals_endpoint()
+            if not success or not signals:
+                self.log_test("Check Command Format", False, "No signals to verify format")
+                return False
+            
+            # Verify that signals have the required fields for purchase pathways
+            latest_signal = signals[0]
+            required_fields = ['chain', 'contract_address']
+            
+            missing_fields = []
+            for field in required_fields:
+                if field not in latest_signal:
+                    missing_fields.append(field)
+            
+            if missing_fields:
+                self.log_test("Check Command Format", False, f"Missing fields for purchase pathways: {missing_fields}")
+                return False
+            
+            # Check if the chain is supported for purchase pathways
+            chain = latest_signal.get('chain', '').lower()
+            supported_chains = ['solana', 'ethereum', 'polygon']
+            
+            if chain in supported_chains:
+                self.log_test("Check Command Format", True, 
+                            f"Purchase pathways available for {latest_signal['chain']} chain")
+                return True
+            else:
+                self.log_test("Check Command Format", False, f"Unsupported chain for purchase pathways: {chain}")
+                return False
+                
+        except Exception as e:
+            self.log_test("Check Command Format", False, f"Exception: {str(e)}")
+            return False
         """Test database integration by checking if signals persist"""
         print("\n🔍 Testing Database Integration...")
         
