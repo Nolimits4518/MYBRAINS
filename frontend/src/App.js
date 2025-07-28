@@ -19,6 +19,178 @@ function App() {
     fetchSignals();
     checkBotStatus();
     fetchScanStatus();
+    
+    const statusInterval = setInterval(() => {
+      if (scanStatus?.active) {
+        fetchScanStatus();
+      }
+    }, 10000);
+
+    return () => clearInterval(statusInterval);
+  }, [scanStatus?.active]);
+
+  const fetchSignals = async () => {
+    try {
+      const response = await fetch(`${backendUrl}/api/signals`);
+      const data = await response.json();
+      setSignals(data.signals);
+    } catch (error) {
+      console.error('Error fetching signals:', error);
+    }
+  };
+
+  const checkBotStatus = async () => {
+    try {
+      const response = await fetch(`${backendUrl}/api/test-telegram`);
+      const data = await response.json();
+      setBotStatus(data);
+    } catch (error) {
+      console.error('Telegram bot connection failed:', error);
+      setBotStatus({ status: 'error', message: error.message });
+    }
+  };
+
+  const fetchScanStatus = async () => {
+    try {
+      const response = await fetch(`${backendUrl}/api/scan-status`);
+      const data = await response.json();
+      setScanStatus(data);
+    } catch (error) {
+      console.error('Error fetching scan status:', error);
+    }
+  };
+
+  const updateScanSettings = async (newSettings) => {
+    try {
+      const response = await fetch(`${backendUrl}/api/update-scan-settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...newSettings,
+          chat_id: parseInt(chatId) || null
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setScanSettings(newSettings);
+        fetchScanStatus();
+        alert(data.message);
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.detail}`);
+      }
+    } catch (error) {
+      alert(`Network error: ${error.message}`);
+    }
+  };
+
+  const sendTestSignal = async () => {
+    if (!chatId) {
+      alert('Please enter your Telegram Chat ID');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${backendUrl}/api/send-test-signal?chat_id=${chatId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Test signal sent successfully! Signal ID: ${data.signal_id}`);
+        fetchSignals();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.detail}`);
+      }
+    } catch (error) {
+      alert(`Network error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startMonitoring = async () => {
+    if (!chatId) {
+      alert('Please enter your Telegram Chat ID first');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${backendUrl}/api/start-monitoring`, {
+        method: 'POST'
+      });
+      if (response.ok) {
+        fetchScanStatus();
+        alert(`Monitoring started! Scanning every ${scanSettings.interval_minutes} minutes.`);
+      }
+    } catch (error) {
+      alert(`Error starting monitoring: ${error.message}`);
+    }
+  };
+
+  const stopMonitoring = async () => {
+    try {
+      const response = await fetch(`${backendUrl}/api/stop-monitoring`, {
+        method: 'POST'
+      });
+      if (response.ok) {
+        fetchScanStatus();
+        alert('Monitoring stopped!');
+      }
+    } catch (error) {
+      alert(`Error stopping monitoring: ${error.message}`);
+    }
+  };
+
+  const formatTimestamp = (timestamp) => {
+    return new Date(timestamp).toLocaleString();
+  };
+
+  const formatNextScan = (nextScan) => {
+    if (!nextScan) return 'N/A';
+    const next = new Date(nextScan);
+    const now = new Date();
+    const diff = Math.max(0, Math.floor((next - now) / 1000 / 60));
+    return diff > 0 ? `${diff}m` : 'Now';
+  };
+
+  const getChainColor = (chain) => {
+    const colors = {
+      'Solana': 'bg-purple-100 text-purple-800',
+      'Ethereum': 'bg-blue-100 text-blue-800',
+      'Polygon': 'bg-indigo-100 text-indigo-800',
+      'BSC': 'bg-yellow-100 text-yellow-800'
+    };
+    return colors[chain] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 8) return 'text-green-600';
+    if (score >= 6) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getModeColor = (mode) => {
+    const colors = {
+      'aggressive': 'bg-red-100 text-red-800',
+      'normal': 'bg-blue-100 text-blue-800',
+      'conservative': 'bg-green-100 text-green-800'
+    };
+    return colors[mode] || 'bg-gray-100 text-gray-800';
+  };
+
+  useEffect(() => {
+    fetchSignals();
+    checkBotStatus();
+    fetchScanStatus();
     fetchTradingStatus();
     
     // Poll statuses every 10 seconds
