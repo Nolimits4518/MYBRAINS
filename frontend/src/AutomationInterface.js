@@ -242,10 +242,10 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
 
           <button
             onClick={setupAutoTrading}
-            disabled={loading || !autoTradingConfig.wallet_address}
+            disabled={loading || (!autoTradingConfig.solana_wallet && !autoTradingConfig.ethereum_wallet)}
             className="w-full px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all duration-200"
           >
-            {loading ? 'Setting up...' : '🤖 Setup Smart Contract Automation'}
+            {loading ? 'Setting up...' : '🤖 Setup Multi-Chain Automation'}
           </button>
 
           {/* Safety Information */}
