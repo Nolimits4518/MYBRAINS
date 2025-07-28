@@ -4,13 +4,15 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
   const [tradingStatus, setTradingStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [autoTradingConfig, setAutoTradingConfig] = useState({
-    wallet_address: '',
+    solana_wallet: '8PSCzs3itmfPrLzn3NbN1pPVGQhDimU1pZ2sz4k9tTiA',
+    ethereum_wallet: '0x8C9658E97767A2c34a9bB8070674F092eEA36ff5',
     max_trade_amount_sol: 0.5,
+    max_trade_amount_eth: 0.1,
     max_daily_trades: 3,
     min_safety_score: 7.5,
     min_profit_score: 7.0,
     max_slippage_percent: 15,
-    allowed_chains: ['Solana']
+    allowed_chains: ['Solana', 'Ethereum']
   });
 
   useEffect(() => {
