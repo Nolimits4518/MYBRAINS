@@ -33,7 +33,7 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
   };
 
   const setupAutoTrading = async () => {
-    if (!autoTradingConfig.solana_wallet && !autoTradingConfig.ethereum_wallet) {
+    if (!autoTradingConfig.solana_wallet && !autoTradingConfig.ethereum_wallet && !autoTradingConfig.base_wallet) {
       alert('Please enter at least one wallet address');
       return;
     }
