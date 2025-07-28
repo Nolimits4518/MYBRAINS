@@ -95,25 +95,35 @@ class SimpleWalletAutomation:
             logger.error(f"Error initializing trading config: {str(e)}")
             return {"error": f"Configuration failed: {str(e)}"}
     
-    async def _validate_solana_wallet(self, wallet_address: str) -> bool:
-        """Simplified wallet validation"""
+    async def _validate_wallet_address(self, wallet_address: str, chain: str = None) -> bool:
+        """Validate wallet address for different chains"""
         try:
-            # Basic format check for Solana wallet
-            if len(wallet_address) < 32 or len(wallet_address) > 44:
-                return False
+            # Solana wallet validation
+            if len(wallet_address) >= 32 and len(wallet_address) <= 44 and not wallet_address.startswith('0x'):
+                # Check if it contains valid base58 characters
+                valid_chars = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+                return all(c in valid_chars for c in wallet_address)
             
-            # Check if it contains valid base58 characters
-            valid_chars = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
-            if not all(c in valid_chars for c in wallet_address):
+            # Ethereum wallet validation  
+            elif wallet_address.startswith('0x') and len(wallet_address) == 42:
+                # Check if it contains valid hex characters
+                try:
+                    int(wallet_address[2:], 16)  # Try to parse as hex
+                    return True
+                except ValueError:
+                    return False
+            
+            # Other supported formats can be added here
+            else:
                 return False
                 
-            # For now, assume valid if format checks pass
-            # In production, this would query Solana RPC
-            return True
-            
         except Exception as e:
             logger.error(f"Wallet validation error: {str(e)}")
             return False
+            
+    async def _validate_solana_wallet(self, wallet_address: str) -> bool:
+        """Legacy method - now uses _validate_wallet_address"""
+        return await self._validate_wallet_address(wallet_address)
     
     async def process_trade_signal(self, signal: SimpleTradeSignal) -> Dict:
         """Process incoming trade signal with safety checks"""
