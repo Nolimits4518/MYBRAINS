@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import AutomationInterface from './AutomationInterface';
 
 function App() {
   const [signals, setSignals] = useState([]);
@@ -7,19 +8,9 @@ function App() {
   const [chatId, setChatId] = useState('');
   const [botStatus, setBotStatus] = useState(null);
   const [scanStatus, setScanStatus] = useState(null);
-  const [tradingStatus, setTradingStatus] = useState(null);
   const [scanSettings, setScanSettings] = useState({
     interval_minutes: 15,
     mode: 'normal'
-  });
-  const [autoTradingConfig, setAutoTradingConfig] = useState({
-    wallet_address: '',
-    max_trade_amount_sol: 0.5,
-    max_daily_trades: 3,
-    min_safety_score: 7.5,
-    min_profit_score: 7.0,
-    max_slippage_percent: 15,
-    allowed_chains: ['Solana']
   });
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
