@@ -8,10 +8,9 @@ import json
 import base58
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Confirmed
-from solana.transaction import Transaction
-from solana.system_program import TransferParams, transfer
-from solana.publickey import PublicKey
-from spl.token.instructions import get_associated_token_address
+from solana.rpc.types import TxOpts
+from solders.pubkey import Pubkey
+from solders.system_program import TransferParams, transfer
 import aiohttp
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
@@ -64,7 +63,7 @@ class PhantomWalletAutomation:
         try:
             # Validate wallet address
             try:
-                wallet_pubkey = PublicKey(config.wallet_address)
+                wallet_pubkey = Pubkey.from_string(config.wallet_address)
             except Exception:
                 return {"error": "Invalid wallet address format"}
             
@@ -181,7 +180,7 @@ class PhantomWalletAutomation:
         
         # Check wallet balance
         try:
-            wallet_pubkey = PublicKey(self.config.wallet_address)
+            wallet_pubkey = Pubkey.from_string(self.config.wallet_address)
             balance_response = await self.client.get_balance(wallet_pubkey)
             balance_sol = balance_response.value / 1e9
             
@@ -323,7 +322,7 @@ class PhantomWalletAutomation:
         
         try:
             # Get current wallet balance
-            wallet_pubkey = PublicKey(self.config.wallet_address)
+            wallet_pubkey = Pubkey.from_string(self.config.wallet_address)
             balance_response = await self.client.get_balance(wallet_pubkey)
             balance_sol = balance_response.value / 1e9
             
