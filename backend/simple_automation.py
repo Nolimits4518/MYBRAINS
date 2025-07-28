@@ -95,6 +95,7 @@ class SimpleWalletAutomation:
                 "protections_active": [
                     f"Solana: Max {config.max_trade_amount_sol} SOL per trade",
                     f"Ethereum: Max {config.max_trade_amount_eth} ETH per trade", 
+                    f"Base: Max {config.max_trade_amount_base} ETH per trade",
                     f"Daily limit: {config.max_daily_trades} trades total",
                     f"Min safety score: {config.min_safety_score}/10",
                     f"Max slippage: {config.max_slippage_bps/100}%",
