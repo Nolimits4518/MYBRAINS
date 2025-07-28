@@ -21,6 +21,7 @@ class SimpleTradingConfig:
     wallet_addresses: Dict[str, str]  # Chain -> wallet address mapping
     max_trade_amount_sol: float
     max_trade_amount_eth: float
+    max_trade_amount_base: float
     max_daily_trades: int
     min_safety_score: float
     min_profit_score: float
