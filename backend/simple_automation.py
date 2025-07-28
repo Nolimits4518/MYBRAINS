@@ -77,7 +77,8 @@ class SimpleWalletAutomation:
                 "wallet_addresses": {chain: f"{addr[:4]}...{addr[-4:]}" for chain, addr in validated_wallets.items()},
                 "max_trade_amounts": {
                     "Solana": f"{config.max_trade_amount_sol} SOL",
-                    "Ethereum": f"{config.max_trade_amount_eth} ETH"
+                    "Ethereum": f"{config.max_trade_amount_eth} ETH",
+                    "Base": f"{config.max_trade_amount_base} ETH"
                 },
                 "daily_limit": config.max_daily_trades,
                 "safety_threshold": config.min_safety_score,
