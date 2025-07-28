@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SimpleTradingConfig:
     """Configuration for automated trading"""
-    wallet_address: str
+    wallet_addresses: Dict[str, str]  # Chain -> wallet address mapping
     max_trade_amount_sol: float
+    max_trade_amount_eth: float
     max_daily_trades: int
     min_safety_score: float
     min_profit_score: float
