@@ -312,13 +312,24 @@ async def get_scan_status():
 async def setup_auto_trading(config: AutoTradingConfig):
     """Setup automated trading with smart contract safety"""
     try:
+        # Build wallet addresses dictionary
+        wallet_addresses = {}
+        if config.solana_wallet:
+            wallet_addresses["Solana"] = config.solana_wallet
+        if config.ethereum_wallet:
+            wallet_addresses["Ethereum"] = config.ethereum_wallet
+            
+        if not wallet_addresses:
+            raise HTTPException(status_code=400, detail="At least one wallet address is required")
+        
         # Convert percentage to basis points
         max_slippage_bps = int(config.max_slippage_percent * 100)
         
         # Create trading configuration
         trading_config = TradingConfig(
-            wallet_address=config.wallet_address,
+            wallet_addresses=wallet_addresses,
             max_trade_amount_sol=config.max_trade_amount_sol,
+            max_trade_amount_eth=config.max_trade_amount_eth,
             max_daily_trades=config.max_daily_trades,
             min_safety_score=config.min_safety_score,
             min_profit_score=config.min_profit_score,
@@ -336,9 +347,19 @@ async def setup_auto_trading(config: AutoTradingConfig):
         
         # Store configuration in database
         await app.mongodb.trading_configs.update_one(
-            {"wallet_address": config.wallet_address},
+            {"wallet_addresses": wallet_addresses},
             {"$set": {
-                "config": config.dict(),
+                "config": {
+                    "solana_wallet": config.solana_wallet,
+                    "ethereum_wallet": config.ethereum_wallet,
+                    "max_trade_amount_sol": config.max_trade_amount_sol,
+                    "max_trade_amount_eth": config.max_trade_amount_eth,
+                    "max_daily_trades": config.max_daily_trades,
+                    "min_safety_score": config.min_safety_score,
+                    "min_profit_score": config.min_profit_score,
+                    "max_slippage_percent": config.max_slippage_percent,
+                    "allowed_chains": config.allowed_chains
+                },
                 "created_at": datetime.utcnow(),
                 "active": True
             }},
@@ -346,14 +367,17 @@ async def setup_auto_trading(config: AutoTradingConfig):
         )
         
         return {
-            "status": "success",
-            "message": "Smart contract automation setup complete",
-            "wallet": f"{config.wallet_address[:4]}...{config.wallet_address[-4:]}",
+            "status": "success", 
+            "message": "Multi-chain smart contract automation setup complete",
+            "wallets": {
+                "Solana": f"{config.solana_wallet[:4]}...{config.solana_wallet[-4:]}" if config.solana_wallet else "Not configured",
+                "Ethereum": f"{config.ethereum_wallet[:4]}...{config.ethereum_wallet[-4:]}" if config.ethereum_wallet else "Not configured"
+            },
             "safety_features": result.get("protections_active", []),
             "wallet_balance": result.get("wallet_balance"),
             "next_steps": [
                 "Monitor signals in dashboard",
-                "Adjust limits anytime using /api/update-trading-limits",
+                "Adjust limits anytime using /api/update-trading-limits", 
                 "Emergency stop available at /api/emergency-stop",
                 "Revoke permissions anytime at /api/revoke-trading"
             ]
