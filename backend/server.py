@@ -357,8 +357,10 @@ async def setup_auto_trading(config: AutoTradingConfig):
                 "config": {
                     "solana_wallet": config.solana_wallet,
                     "ethereum_wallet": config.ethereum_wallet,
+                    "base_wallet": config.base_wallet,
                     "max_trade_amount_sol": config.max_trade_amount_sol,
                     "max_trade_amount_eth": config.max_trade_amount_eth,
+                    "max_trade_amount_base": config.max_trade_amount_base,
                     "max_daily_trades": config.max_daily_trades,
                     "min_safety_score": config.min_safety_score,
                     "min_profit_score": config.min_profit_score,
