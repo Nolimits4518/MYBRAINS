@@ -134,6 +134,12 @@ class SimpleWalletAutomation:
     async def _validate_solana_wallet(self, wallet_address: str) -> bool:
         """Legacy method - now uses _validate_wallet_address"""
         return await self._validate_wallet_address(wallet_address)
+            
+    async def _get_wallet_for_chain(self, chain: str) -> Optional[str]:
+        """Get wallet address for specific chain"""
+        if not self.config or not self.config.wallet_addresses:
+            return None
+        return self.config.wallet_addresses.get(chain)
     
     async def process_trade_signal(self, signal: SimpleTradeSignal) -> Dict:
         """Process incoming trade signal with safety checks"""
