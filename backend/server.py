@@ -15,8 +15,13 @@ from dotenv import load_dotenv
 import time
 from pydantic import BaseModel
 
-# Import smart contract automation
-from smart_contract_automation import wallet_automation, TradingConfig, TradeSignal
+# Import simplified smart contract automation
+from simple_automation import simple_wallet_automation, SimpleTradingConfig, SimpleTradeSignal
+
+# Alias for compatibility
+wallet_automation = simple_wallet_automation
+TradingConfig = SimpleTradingConfig
+TradeSignal = SimpleTradeSignal
 
 load_dotenv()
 
