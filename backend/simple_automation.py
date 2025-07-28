@@ -324,7 +324,7 @@ class SimpleWalletAutomation:
                 },
                 "emergency_stop": self.config.emergency_stop,
                 "permissions_active": True,
-                "wallet_address": f"{self.config.wallet_address[:4]}...{self.config.wallet_address[-4:]}"
+                "wallet_addresses": {chain: f"{addr[:4]}...{addr[-4:]}" for chain, addr in self.config.wallet_addresses.items()}
             }
             
         except Exception as e:
