@@ -11,3 +11,5 @@ asyncio==3.4.3
 ccxt==4.1.81
 web3==6.13.0
 pydantic==2.5.2
+solana==0.32.0
+base58==2.1.1

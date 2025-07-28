@@ -15,6 +15,9 @@ from dotenv import load_dotenv
 import time
 from pydantic import BaseModel
 
+# Import smart contract automation
+from smart_contract_automation import wallet_automation, TradingConfig, TradeSignal
+
 load_dotenv()
 
 app = FastAPI(title="Memecoin Signal Bot", version="1.0.0")
@@ -61,6 +64,21 @@ class ScanSettings(BaseModel):
     interval_minutes: int
     mode: str
     chat_id: Optional[int] = None
+
+class AutoTradingConfig(BaseModel):
+    wallet_address: str
+    max_trade_amount_sol: float
+    max_daily_trades: int
+    min_safety_score: float
+    min_profit_score: float
+    max_slippage_percent: float
+    allowed_chains: List[str]
+    
+class TradingLimitsUpdate(BaseModel):
+    max_trade_amount_sol: Optional[float] = None
+    max_daily_trades: Optional[int] = None
+    min_safety_score: Optional[float] = None
+    max_slippage_percent: Optional[float] = None
 
 class TokenSignal:
     def __init__(self, contract_address: str, name: str, symbol: str, chain: str, 
@@ -283,6 +301,130 @@ async def get_scan_status():
     
     return status
 
+@app.post("/api/setup-auto-trading")
+async def setup_auto_trading(config: AutoTradingConfig):
+    """Setup automated trading with smart contract safety"""
+    try:
+        # Convert percentage to basis points
+        max_slippage_bps = int(config.max_slippage_percent * 100)
+        
+        # Create trading configuration
+        trading_config = TradingConfig(
+            wallet_address=config.wallet_address,
+            max_trade_amount_sol=config.max_trade_amount_sol,
+            max_daily_trades=config.max_daily_trades,
+            min_safety_score=config.min_safety_score,
+            min_profit_score=config.min_profit_score,
+            max_slippage_bps=max_slippage_bps,
+            emergency_stop=False,
+            allowed_chains=config.allowed_chains,
+            auto_trade_enabled=True
+        )
+        
+        # Initialize smart contract automation
+        result = await wallet_automation.initialize_trading_config(trading_config)
+        
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        
+        # Store configuration in database
+        await app.mongodb.trading_configs.update_one(
+            {"wallet_address": config.wallet_address},
+            {"$set": {
+                "config": config.dict(),
+                "created_at": datetime.utcnow(),
+                "active": True
+            }},
+            upsert=True
+        )
+        
+        return {
+            "status": "success",
+            "message": "Smart contract automation setup complete",
+            "wallet": f"{config.wallet_address[:4]}...{config.wallet_address[-4:]}",
+            "safety_features": result.get("protections_active", []),
+            "wallet_balance": result.get("wallet_balance"),
+            "next_steps": [
+                "Monitor signals in dashboard",
+                "Adjust limits anytime using /api/update-trading-limits",
+                "Emergency stop available at /api/emergency-stop",
+                "Revoke permissions anytime at /api/revoke-trading"
+            ]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Setup failed: {str(e)}")
+
+@app.get("/api/trading-status")
+async def get_trading_status():
+    """Get current automated trading status"""
+    try:
+        status = await wallet_automation.get_trading_status()
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
+
+@app.post("/api/update-trading-limits")
+async def update_trading_limits(limits: TradingLimitsUpdate):
+    """Update trading limits safely"""
+    try:
+        # Convert percentage to basis points if provided
+        limits_dict = limits.dict(exclude_unset=True)
+        if "max_slippage_percent" in limits_dict:
+            limits_dict["max_slippage_bps"] = int(limits_dict.pop("max_slippage_percent") * 100)
+        
+        result = await wallet_automation.update_trading_limits(limits_dict)
+        
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
+
+@app.post("/api/emergency-stop")
+async def emergency_stop():
+    """Emergency stop all automated trading"""
+    try:
+        result = await wallet_automation.emergency_stop()
+        
+        # Log emergency stop
+        await app.mongodb.trading_events.insert_one({
+            "event": "emergency_stop",
+            "timestamp": datetime.utcnow(),
+            "details": result
+        })
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Emergency stop failed: {str(e)}")
+
+@app.post("/api/revoke-trading")
+async def revoke_trading_permissions():
+    """Revoke all trading permissions"""
+    try:
+        result = await wallet_automation.revoke_permissions()
+        
+        # Update database
+        await app.mongodb.trading_configs.update_many(
+            {"active": True},
+            {"$set": {"active": False, "revoked_at": datetime.utcnow()}}
+        )
+        
+        # Log revocation
+        await app.mongodb.trading_events.insert_one({
+            "event": "permissions_revoked",
+            "timestamp": datetime.utcnow(),
+            "details": result
+        })
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Revoke failed: {str(e)}")
+
 @app.post("/api/update-scan-settings")
 async def update_scan_settings(settings: ScanSettings):
     """Update scanning interval and mode"""
@@ -368,6 +510,31 @@ async def send_test_signal(chat_id: int):
     }
     
     await app.mongodb.signals.insert_one(signal_data)
+    
+    # Check if automated trading is enabled
+    if wallet_automation.config and wallet_automation.config.auto_trade_enabled:
+        # Process signal for automated trading
+        trade_signal = TradeSignal(
+            token_address=test_signal.contract_address,
+            token_name=test_signal.name,
+            token_symbol=test_signal.symbol,
+            chain=test_signal.chain,
+            safety_score=test_signal.safety_score,
+            profit_score=test_signal.profit_potential,
+            trade_amount_sol=min(0.1, wallet_automation.config.max_trade_amount_sol),  # Small test amount
+            max_slippage_bps=1500,  # 15% slippage
+            timestamp=test_signal.timestamp
+        )
+        
+        # Process for automated trading (async)
+        trade_result = await wallet_automation.process_trade_signal(trade_signal)
+        
+        # Store trade result
+        await app.mongodb.trade_results.insert_one({
+            "signal_id": test_signal.id,
+            "trade_result": trade_result,
+            "timestamp": datetime.utcnow()
+        })
     
     # Send to Telegram
     try:
@@ -539,9 +706,40 @@ async def create_auto_signal():
     
     await app.mongodb.signals.insert_one(signal_data)
     
+    # Check if automated trading is enabled and process signal
+    if wallet_automation.config and wallet_automation.config.auto_trade_enabled:
+        trade_signal = TradeSignal(
+            token_address=auto_signal.contract_address,
+            token_name=auto_signal.name,
+            token_symbol=auto_signal.symbol,
+            chain=auto_signal.chain,
+            safety_score=auto_signal.safety_score,
+            profit_score=auto_signal.profit_potential,
+            trade_amount_sol=min(wallet_automation.config.max_trade_amount_sol * 0.5, 0.5),  # Use 50% of max or 0.5 SOL max
+            max_slippage_bps=wallet_automation.config.max_slippage_bps,
+            timestamp=auto_signal.timestamp
+        )
+        
+        # Process for automated trading
+        trade_result = await wallet_automation.process_trade_signal(trade_signal)
+        
+        # Store trade result
+        await app.mongodb.trade_results.insert_one({
+            "signal_id": auto_signal.id,
+            "trade_result": trade_result,
+            "timestamp": datetime.utcnow()
+        })
+        
+        print(f"🤖 Auto-trade processed: {auto_signal.name} - {trade_result.get('status')}")
+    
     # Send to Telegram
     try:
         message = format_signal_message(auto_signal)
+        
+        # Add automation status to message if enabled
+        if wallet_automation.config and wallet_automation.config.auto_trade_enabled:
+            message += f"\n\n🤖 AUTOMATION: Smart contract will evaluate this signal automatically"
+        
         await bot.send_message(
             chat_id=chat_id,
             text=message,
@@ -686,6 +884,16 @@ async def send_signal_stats(chat_id: int):
     scan_mode = current_scan_settings["mode"].title()
     scan_interval = current_scan_settings["interval_minutes"]
     
+    # Get automated trading status
+    auto_trading_status = "Inactive"
+    if wallet_automation.config:
+        if wallet_automation.config.auto_trade_enabled and not wallet_automation.config.emergency_stop:
+            auto_trading_status = "Active"
+        elif wallet_automation.config.emergency_stop:
+            auto_trading_status = "Emergency Stop"
+        else:
+            auto_trading_status = "Configured but Disabled"
+    
     stats_message = f"""📈 SIGNAL STATISTICS
 
 Today: {today_signals}/5 signals sent
@@ -698,6 +906,9 @@ Status: {scan_status}
 Mode: {scan_mode}
 Interval: {scan_interval} minutes
 Scans Today: {current_scan_settings['scans_today']}
+
+🤖 AUTOMATION STATUS
+Auto Trading: {auto_trading_status}
 
 Top Performing Chains:
 • Solana: 45% of signals
