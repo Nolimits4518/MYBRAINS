@@ -187,6 +187,8 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
               />
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-300 mb-1">Daily Limit</label>
               <input
@@ -196,6 +198,17 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
                 value={autoTradingConfig.max_daily_trades}
                 onChange={(e) => setAutoTradingConfig({...autoTradingConfig, max_daily_trades: parseInt(e.target.value)})}
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-300 mb-1">Max Slippage %</label>
+              <input
+                type="number"
+                min="1"
+                max="25"
+                value={autoTradingConfig.max_slippage_percent}
+                onChange={(e) => setAutoTradingConfig({...autoTradingConfig, max_slippage_percent: parseInt(e.target.value)})}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -214,13 +227,14 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-300 mb-1">Max Slippage %</label>
+              <label className="block text-xs text-gray-300 mb-1">Min Profit Score</label>
               <input
                 type="number"
-                min="1"
-                max="25"
-                value={autoTradingConfig.max_slippage_percent}
-                onChange={(e) => setAutoTradingConfig({...autoTradingConfig, max_slippage_percent: parseInt(e.target.value)})}
+                min="5"
+                max="10"
+                step="0.1"
+                value={autoTradingConfig.min_profit_score}
+                onChange={(e) => setAutoTradingConfig({...autoTradingConfig, min_profit_score: parseFloat(e.target.value)})}
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
