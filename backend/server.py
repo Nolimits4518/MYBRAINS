@@ -242,25 +242,25 @@ def get_purchase_pathways(chain: str, contract_address: str) -> dict:
             "gas_token": "ETH"
         }
     
-    elif chain.lower() == "polygon":
+    elif chain.lower() == "base":
         return {
-            "primary_dex": "🔵 PRIMARY: QuickSwap (Low fees)",
-            "instructions": """1. Open Phantom → Switch to Polygon network
-2. Bridge MATIC if needed
-3. Go to QuickSwap
-4. Set: MATIC → Custom Token
+            "primary_dex": "🔵 PRIMARY: Uniswap V3 on Base (Low fees)",
+            "instructions": """1. Open Phantom wallet → Switch to Base network
+2. Bridge ETH to Base if needed
+3. Go to Uniswap on Base
+4. Set: ETH → Custom Token
 5. Paste contract: {0}
 6. Set slippage: 8-15%
 7. Swap""".format(contract_address),
-            "links": """• QuickSwap: quickswap.exchange
-• SushiSwap: sushi.com
-• ParaSwap: paraswap.io
-• DEX Screener: dexscreener.com/polygon/{0}
-• PolygonScan: polygonscan.com/token/{0}""".format(contract_address, contract_address),
-            "phantom_steps": """• Network: Switch to Polygon
-• Bridge: Use Phantom's built-in bridge
+            "links": """• Uniswap Base: app.uniswap.org
+• SushiSwap Base: sushi.com
+• Aerodrome: aerodrome.finance
+• DEX Screener: dexscreener.com/base/{0}
+• BaseScan: basescan.org/token/{0}""".format(contract_address, contract_address),
+            "phantom_steps": """• Network: Switch to Base
+• Bridge: Use Phantom's built-in bridge from ETH
 • Import: Add custom token with contract""",
-            "gas_token": "MATIC"
+            "gas_token": "ETH"
         }
     
     else:
