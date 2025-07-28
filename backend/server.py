@@ -71,13 +71,15 @@ class ScanSettings(BaseModel):
     chat_id: Optional[int] = None
 
 class AutoTradingConfig(BaseModel):
-    wallet_address: str
-    max_trade_amount_sol: float
-    max_daily_trades: int
-    min_safety_score: float
-    min_profit_score: float
-    max_slippage_percent: float
-    allowed_chains: List[str]
+    solana_wallet: str = ""
+    ethereum_wallet: str = "" 
+    max_trade_amount_sol: float = 0.5
+    max_trade_amount_eth: float = 0.1
+    max_daily_trades: int = 3
+    min_safety_score: float = 7.5
+    min_profit_score: float = 7.0
+    max_slippage_percent: float = 15.0
+    allowed_chains: List[str] = ["Solana", "Ethereum"]
     
 class TradingLimitsUpdate(BaseModel):
     max_trade_amount_sol: Optional[float] = None
