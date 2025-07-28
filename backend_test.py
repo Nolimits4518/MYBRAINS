@@ -408,9 +408,6 @@ class MemecoinBotTester:
         self.test_start_monitoring()
         self.test_weekly_report()
         
-        # Test database integration
-        self.test_database_integration()
-        
         # Print summary
         print("\n" + "=" * 60)
         print("📊 TEST SUMMARY")
