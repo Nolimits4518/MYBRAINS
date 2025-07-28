@@ -52,24 +52,32 @@ class SimpleWalletAutomation:
         self.active_positions = {}
         
     async def initialize_trading_config(self, config: SimpleTradingConfig) -> Dict:
-        """Initialize safe trading configuration"""
+        """Initialize multi-chain trading configuration"""
         try:
-            # Basic wallet address validation
-            if not config.wallet_address or len(config.wallet_address) < 32:
-                return {"error": "Invalid wallet address format"}
+            # Validate all provided wallet addresses
+            validated_wallets = {}
+            for chain, wallet_address in config.wallet_addresses.items():
+                if not wallet_address:
+                    continue
+                    
+                if not await self._validate_wallet_address(wallet_address, chain):
+                    return {"error": f"Invalid {chain} wallet address format: {wallet_address}"}
+                
+                validated_wallets[chain] = wallet_address
             
-            # Check if wallet exists on Solana (simplified check)
-            wallet_valid = await self._validate_solana_wallet(config.wallet_address)
-            if not wallet_valid:
-                return {"error": "Unable to validate wallet on Solana network"}
+            if not validated_wallets:
+                return {"error": "No valid wallet addresses provided"}
             
             # Store configuration
             self.config = config
             
             # Create safety state
             safety_state = {
-                "wallet_address": config.wallet_address,
-                "max_trade_amount": config.max_trade_amount_sol,
+                "wallet_addresses": {chain: f"{addr[:4]}...{addr[-4:]}" for chain, addr in validated_wallets.items()},
+                "max_trade_amounts": {
+                    "Solana": f"{config.max_trade_amount_sol} SOL",
+                    "Ethereum": f"{config.max_trade_amount_eth} ETH"
+                },
                 "daily_limit": config.max_daily_trades,
                 "safety_threshold": config.min_safety_score,
                 "emergency_stop": config.emergency_stop,
@@ -79,12 +87,13 @@ class SimpleWalletAutomation:
             
             return {
                 "status": "success",
-                "message": f"Smart contract automation initialized for wallet {config.wallet_address[:4]}...{config.wallet_address[-4:]}",
+                "message": f"Multi-chain smart contract automation initialized for {', '.join(validated_wallets.keys())}",
                 "safety_state": safety_state,
-                "wallet_balance": "Connected to Solana mainnet",
+                "wallet_balance": f"Connected to {len(validated_wallets)} chains",
                 "protections_active": [
-                    f"Max trade: {config.max_trade_amount_sol} SOL",
-                    f"Daily limit: {config.max_daily_trades} trades",
+                    f"Solana: Max {config.max_trade_amount_sol} SOL per trade",
+                    f"Ethereum: Max {config.max_trade_amount_eth} ETH per trade", 
+                    f"Daily limit: {config.max_daily_trades} trades total",
                     f"Min safety score: {config.min_safety_score}/10",
                     f"Max slippage: {config.max_slippage_bps/100}%",
                     "Emergency stop available",
