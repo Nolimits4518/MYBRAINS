@@ -334,6 +334,7 @@ async def setup_auto_trading(config: AutoTradingConfig):
             wallet_addresses=wallet_addresses,
             max_trade_amount_sol=config.max_trade_amount_sol,
             max_trade_amount_eth=config.max_trade_amount_eth,
+            max_trade_amount_base=config.max_trade_amount_base,
             max_daily_trades=config.max_daily_trades,
             min_safety_score=config.min_safety_score,
             min_profit_score=config.min_profit_score,
