@@ -163,9 +163,22 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              🔵 Base Network Wallet Address
+            </label>
+            <input
+              type="text"
+              value={autoTradingConfig.base_wallet}
+              onChange={(e) => setAutoTradingConfig({...autoTradingConfig, base_wallet: e.target.value})}
+              placeholder="Enter your Base wallet address"
+              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="block text-xs text-gray-300 mb-1">Max Trade SOL</label>
+              <label className="block text-xs text-gray-300 mb-1">Max SOL</label>
               <input
                 type="number"
                 min="0.1"
@@ -173,11 +186,11 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
                 step="0.1"
                 value={autoTradingConfig.max_trade_amount_sol}
                 onChange={(e) => setAutoTradingConfig({...autoTradingConfig, max_trade_amount_sol: parseFloat(e.target.value)})}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full px-2 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-300 mb-1">Max Trade ETH</label>
+              <label className="block text-xs text-gray-300 mb-1">Max ETH</label>
               <input
                 type="number"
                 min="0.01"
@@ -185,7 +198,19 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
                 step="0.01"
                 value={autoTradingConfig.max_trade_amount_eth}
                 onChange={(e) => setAutoTradingConfig({...autoTradingConfig, max_trade_amount_eth: parseFloat(e.target.value)})}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full px-2 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-300 mb-1">Max Base</label>
+              <input
+                type="number"
+                min="0.01"
+                max="5"
+                step="0.01"
+                value={autoTradingConfig.max_trade_amount_base}
+                onChange={(e) => setAutoTradingConfig({...autoTradingConfig, max_trade_amount_base: parseFloat(e.target.value)})}
+                className="w-full px-2 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           </div>
