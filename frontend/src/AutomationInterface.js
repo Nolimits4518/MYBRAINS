@@ -31,8 +31,8 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
   };
 
   const setupAutoTrading = async () => {
-    if (!autoTradingConfig.wallet_address) {
-      alert('Please enter your Phantom wallet address');
+    if (!autoTradingConfig.solana_wallet && !autoTradingConfig.ethereum_wallet) {
+      alert('Please enter at least one wallet address');
       return;
     }
 
@@ -48,7 +48,15 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
 
       if (response.ok) {
         const data = await response.json();
-        alert(`✅ Smart Contract Automation Setup Complete!\n\nWallet: ${data.wallet}\nBalance: ${data.wallet_balance}\n\nSafety Features:\n${data.safety_features.join('\n')}`);
+        
+        let walletInfo = 'Multi-chain automation setup:\n';
+        Object.entries(data.wallets).forEach(([chain, wallet]) => {
+          if (wallet !== "Not configured") {
+            walletInfo += `${chain}: ${wallet}\n`;
+          }
+        });
+        
+        alert(`✅ ${data.message}!\n\n${walletInfo}\nBalance: ${data.wallet_balance}\n\nSafety Features:\n${data.safety_features.join('\n')}`);
         fetchTradingStatus();
       } else {
         const error = await response.json();
