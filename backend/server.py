@@ -320,6 +320,8 @@ async def setup_auto_trading(config: AutoTradingConfig):
             wallet_addresses["Solana"] = config.solana_wallet
         if config.ethereum_wallet:
             wallet_addresses["Ethereum"] = config.ethereum_wallet
+        if config.base_wallet:
+            wallet_addresses["Base"] = config.base_wallet
             
         if not wallet_addresses:
             raise HTTPException(status_code=400, detail="At least one wallet address is required")
