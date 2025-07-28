@@ -120,6 +120,7 @@ class SimpleWalletAutomation:
                 # Check if it contains valid hex characters
                 try:
                     int(wallet_address[2:], 16)  # Try to parse as hex
+                    # EVM-compatible address - works for Ethereum, Base, Polygon, etc.
                     return True
                 except ValueError:
                     return False
