@@ -378,7 +378,8 @@ async def setup_auto_trading(config: AutoTradingConfig):
             "message": "Multi-chain smart contract automation setup complete",
             "wallets": {
                 "Solana": f"{config.solana_wallet[:4]}...{config.solana_wallet[-4:]}" if config.solana_wallet else "Not configured",
-                "Ethereum": f"{config.ethereum_wallet[:4]}...{config.ethereum_wallet[-4:]}" if config.ethereum_wallet else "Not configured"
+                "Ethereum": f"{config.ethereum_wallet[:4]}...{config.ethereum_wallet[-4:]}" if config.ethereum_wallet else "Not configured",
+                "Base": f"{config.base_wallet[:4]}...{config.base_wallet[-4:]}" if config.base_wallet else "Not configured"
             },
             "safety_features": result.get("protections_active", []),
             "wallet_balance": result.get("wallet_balance"),
