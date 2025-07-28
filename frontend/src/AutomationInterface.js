@@ -137,20 +137,33 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
         <>
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Phantom Wallet Address
+              🟣 Solana Wallet Address
             </label>
             <input
               type="text"
-              value={autoTradingConfig.wallet_address}
-              onChange={(e) => setAutoTradingConfig({...autoTradingConfig, wallet_address: e.target.value})}
-              placeholder="Enter your Phantom wallet address"
+              value={autoTradingConfig.solana_wallet}
+              onChange={(e) => setAutoTradingConfig({...autoTradingConfig, solana_wallet: e.target.value})}
+              placeholder="Enter your Solana wallet address"
               className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              🦄 Ethereum Wallet Address
+            </label>
+            <input
+              type="text"
+              value={autoTradingConfig.ethereum_wallet}
+              onChange={(e) => setAutoTradingConfig({...autoTradingConfig, ethereum_wallet: e.target.value})}
+              placeholder="Enter your Ethereum wallet address"
+              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-300 mb-1">Max Trade (SOL)</label>
+              <label className="block text-xs text-gray-300 mb-1">Max Trade SOL</label>
               <input
                 type="number"
                 min="0.1"
@@ -161,6 +174,19 @@ const AutomationInterface = ({ chatId, backendUrl }) => {
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
+            <div>
+              <label className="block text-xs text-gray-300 mb-1">Max Trade ETH</label>
+              <input
+                type="number"
+                min="0.01"
+                max="5"
+                step="0.01"
+                value={autoTradingConfig.max_trade_amount_eth}
+                onChange={(e) => setAutoTradingConfig({...autoTradingConfig, max_trade_amount_eth: parseFloat(e.target.value)})}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
             <div>
               <label className="block text-xs text-gray-300 mb-1">Daily Limit</label>
               <input
