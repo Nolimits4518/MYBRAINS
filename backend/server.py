@@ -15,8 +15,46 @@ from dotenv import load_dotenv
 import time
 from pydantic import BaseModel
 
-# Import smart contract automation
-from smart_contract_automation import wallet_automation, TradingConfig, TradeSignal
+# Import smart contract automation (commented out for now due to dependency issues)
+# from smart_contract_automation import wallet_automation, TradingConfig, TradeSignal
+
+# Mock classes and objects to prevent undefined name errors
+class MockTradingConfig:
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+class MockTradeSignal:
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+class MockWalletAutomation:
+    def __init__(self):
+        self.config = None
+    
+    async def initialize_trading_config(self, config):
+        return {"error": "Smart contract automation is currently disabled"}
+    
+    async def get_trading_status(self):
+        return {"status": "disabled", "message": "Smart contract automation is currently disabled"}
+    
+    async def update_trading_limits(self, limits):
+        return {"error": "Smart contract automation is currently disabled"}
+    
+    async def emergency_stop(self):
+        return {"status": "disabled", "message": "Smart contract automation is currently disabled"}
+    
+    async def revoke_permissions(self):
+        return {"status": "disabled", "message": "Smart contract automation is currently disabled"}
+    
+    async def process_trade_signal(self, signal):
+        return {"status": "disabled", "message": "Smart contract automation is currently disabled"}
+
+# Create mock instances
+TradingConfig = MockTradingConfig
+TradeSignal = MockTradeSignal
+wallet_automation = MockWalletAutomation()
 
 load_dotenv()
 
